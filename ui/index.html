@@ -7,10 +7,10 @@
   <title>Speech Translation POC · Evidence-ready UI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=block" rel="stylesheet">
   <link
     href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
     rel="stylesheet">
-
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -20,9 +20,9 @@
       <h1>Speech Translation POC · <span class="muted">Evidence-ready UI</span></h1>
     </div>
 
-    <div class="row">
-      <!-- Audio devices -->
-      <div class="card">
+    <div class="row" style="display: flex; flex-wrap: wrap; gap: 20px;">
+      <!-- Audio devices (ซ้าย) -->
+      <div class="card" style="flex: 1 1 10%; min-width: 300px;">
         <div class="title">Audio Devices</div>
         <div class="muted">Enumerate input/output devices for demo evidence</div>
         <div class="grid2" style="margin-top:8px">
@@ -42,7 +42,9 @@
         <div style="margin-top:16px">
           <div class="title" style="margin-bottom:8px">Capture</div>
           <div class="stack">
-            <button id="btnRec" class="btn-green">● Record</button>
+            <button id="btnRec">Record</button>
+            <button id="btnPause" style="display:none;">Pause</button>
+            <button id="btnResume" style="display:none;">Resume</button>
             <button id="btnStop" class="btn-ghost" style="display:none;">Stop</button>
           </div>
         </div>
@@ -83,24 +85,20 @@
         </div>
       </div>
 
-      <!-- Speakers -->
-      <div class="card">
+      <!-- Speakers (ขวา) -->
+      <div class="card" style="flex: 1 1 45%; min-width: 300px;">
         <div class="grid2">
           <div>
             <div class="right" style="justify-content:space-between">
               <div class="title">Speaker A</div>
-              <!-- <span class="badge" id="aState"></span> -->
+              <span class="badge" id="aState"></span>
             </div>
             <select id="srcLang" data-prev-value=""></select>
             <div style="margin-top:16px">
               <div class="title" style="margin-bottom:8px">Upload file</div>
               <div class="stack">
-                <!-- Input สำหรับการเลือกไฟล์เสียง -->
                 <input type="file" id="audioFile" accept=".wav" />
-
-                <!-- ปุ่มเพื่อส่งไฟล์เสียงไปยัง Backend -->
                 <button id="btnUploadAudio">Upload Audio</button>
-
               </div>
             </div>
             <textarea id="aInput" style="margin-top:10px" placeholder="พิมพ์/แก้ไขข้อความก่อนแปล..."></textarea>
@@ -114,15 +112,60 @@
             <div class="right" style="justify-content:space-between">
               <div class="title">Speaker B</div>
               <span class="badge" id="bState"></span>
-              <!-- <div class="loader"></div> -->
             </div>
             <select id="tgtLang"></select>
             <textarea id="bOutput" style="margin-top:8px" placeholder="ผลลัพธ์จะแสดงที่นี่..."></textarea>
             <div class="stack" style="margin-top:8px">
-              <button id="btnReadTgt" class="btn-ghost" onclick="speakText('bOutput', 'tgtLang')">Read
-                target</button>
+              <button id="btnReadTgt" class="btn-ghost" onclick="speakText('bOutput', 'tgtLang')">Read target</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ตาราง Evidence -->
+    <div class="card" style="margin-top: 20px;">
+      <div id="evidence" class="bg-white rounded-2xl shadow-sm border p-4" style="margin-top: 24px; flex-grow: 1;">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-medium">Evidence</h3>
+          <div class="flex items-center gap-2">
+            <button class="px-3 py-1.5 rounded-xl border bg-white hover:bg-slate-50 no-print" onclick="markPair()">Mark
+              pair shown</button>
+            <button class="px-3 py-1.5 rounded-xl border bg-white hover:bg-slate-50 no-print"
+              onclick="window.print()">Print (PDF)</button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="flex items-center justify-between text-xs text-slate-600 mb-1">
+            <span>Pairs shown: <span id="pairCount" class="font-semibold">0</span> / 10</span>
+            <span id="pairPct">0%</span>
+          </div>
+          <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div id="pairBar" class="h-2 bg-indigo-500" style="width:0%"></div>
+          </div>
+          <div id="pairList" class="mt-2 text-xs text-slate-500">No pairs marked yet</div>
+        </div>
+        <div class="overflow-auto rounded-xl border">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600">
+              <tr>
+                <th class="text-left px-3 py-2">Time</th>
+                <th class="text-left px-3 py-2">Pair</th>
+                <th class="text-left px-3 py-2">Text</th>
+                <th class="text-right px-3 py-2">STT(s)</th>
+                <th class="text-right px-3 py-2">MT(s)</th>
+                <th class="text-right px-3 py-2">TTS(s)</th>
+                <th class="text-right px-3 py-2">Total(s)</th>
+              </tr>
+            </thead>
+            <tbody id="logBody">
+              <tr>
+                <td colspan="7" class="px-3 py-6 text-center text-slate-500">No logs yet. Translate some text to
+                  populate.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

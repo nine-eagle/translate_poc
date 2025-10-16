@@ -55,6 +55,8 @@ async function scanDevices() {
   }
 }
 el("btnScan").addEventListener("click", scanDevices);
+el("aState").classList.add("hidden");
+el("bState").classList.add("hidden");
 scanDevices();
 
 // ฟังก์ชันเติมตัวเลือกภาษาลงใน dropdown
@@ -113,6 +115,9 @@ function speakText(elementId, languageSelect) {
 }
 
 let recognition;
+let isRecording = false;
+let interimTranscript = "";
+let finalTranscript = "";
 let socket = new WebSocket("ws://localhost:8000/ws"); // WebSocket ที่เชื่อมต่อกับ Backend
 
 // เมื่อเชื่อมต่อ WebSocket สำเร็จ
@@ -123,15 +128,16 @@ socket.onopen = function () {
 // เมื่อได้รับข้อความจาก WebSocket (ข้อความแปล)
 socket.onmessage = function (event) {
   const [original, translated, action] = event.data.split("\n");
-
-  el("bState").textContent = "Waitting"
+  el("bState").classList.remove("hidden");
+  el("bState").textContent = "Waitting";
   // ดึง action จากข้อความ
   const trimmedAction = action.split(": ")[1];
 
   if (trimmedAction == "change_srcLang") {
     // หาก action เป็น "change_srcLang", แสดงข้อความต้นทางใน input
-    const originalText = original.split(": ")[1];
-    document.getElementById("aInput").value = originalText; // ข้อความต้นทาง (STT)
+    const translatedText = translated.split(": ")[1];
+    document.getElementById("aInput").value = translatedText; // ข้อความต้นทาง (STT)
+    el("aState").textContent = "Finish";
   } else if (trimmedAction == "audio") {
     // หาก action เป็น "audio" (เสียงที่แปลงเป็นข้อความ), แสดงข้อความต้นทางใน input
     const sttText = original.split(": ")[1];
@@ -145,9 +151,8 @@ socket.onmessage = function (event) {
     const translatedText = translated.split(": ")[1];
     document.getElementById("bOutput").value = translatedText; // ข้อความแปล
   }
-  el("bState").textContent = "Finish"
+  el("bState").textContent = "Finish";
 };
-
 
 // ส่งข้อความที่จับจากเสียงและภาษาไป WebSocket
 function sendTextForTranslation(text) {
@@ -167,7 +172,8 @@ function sendTextForTranslation(text) {
 
 // เมื่อคลิกปุ่ม Translate เพื่อแปลข้อความที่ผู้ใช้แก้ไขและเลือกภาษาต้นทางใหม่
 document.getElementById("btnTranslate").addEventListener("click", function () {
-  el("bState").textContent = "Waitting"
+  el("bState").classList.remove("hidden");
+  el("bState").textContent = "Waitting";
   let text = document.getElementById("aInput").value; // ข้อความที่ผู้ใช้แก้ไข
   let srcLang = document.getElementById("srcLang").value; // ภาษาเริ่มต้นที่เลือกใหม่
   let tgtLang = document.getElementById("tgtLang").value; // ภาษาเป้าหมาย
@@ -185,6 +191,8 @@ document.getElementById("btnTranslate").addEventListener("click", function () {
 
 // เมื่อผู้ใช้เปลี่ยนภาษาเริ่มต้น
 document.getElementById("srcLang").addEventListener("change", function () {
+  el("aState").classList.remove("hidden");
+  el("aState").textContent = "Waitting";
   // เก็บค่าภาษาปลายทางก่อนการเปลี่ยนแปลง
   let prevTgtLang = this.getAttribute("data-prev-value");
 
@@ -205,7 +213,8 @@ document.getElementById("srcLang").addEventListener("change", function () {
 
 // เมื่อผู้ใช้เปลี่ยนภาษาเป้าหมาย
 document.getElementById("tgtLang").addEventListener("change", function () {
-  el("bState").textContent = "Waitting"
+  el("bState").classList.remove("hidden");
+  el("bState").textContent = "Waitting";
   let text = document.getElementById("aInput").value;
   let srcLang = document.getElementById("srcLang").value;
   let tgtLang = this.value;
@@ -219,29 +228,46 @@ document.getElementById("tgtLang").addEventListener("change", function () {
 
 // เมื่อคลิกปุ่ม Record
 document.getElementById("btnRec").addEventListener("click", function () {
-  startSpeechRecognition();
+  startRecording();
   document.getElementById("btnStop").style.display = "inline-block";
   document.getElementById("btnRec").style.display = "none";
+  document.getElementById("btnPause").style.display = "inline-block";
 });
 
-// เมื่อหยุดการบันทึกเสียง
+// เมื่อคลิกปุ่ม Pause
+document.getElementById("btnPause").addEventListener("click", function () {
+  recognition.stop(); // หยุดการบันทึกเสียง
+  document.getElementById("btnPause").style.display = "none";
+  document.getElementById("btnResume").style.display = "inline-block";
+});
+
+// เมื่อคลิกปุ่ม Resume
+document.getElementById("btnResume").addEventListener("click", function () {
+  startRecording(); // เริ่มการบันทึกเสียงใหม่
+  document.getElementById("btnResume").style.display = "none";
+  document.getElementById("btnPause").style.display = "inline-block";
+});
+
+// เมื่อคลิกปุ่ม Stop
 document.getElementById("btnStop").addEventListener("click", function () {
   recognition.stop();
   document.getElementById("btnStop").style.display = "none";
   document.getElementById("btnRec").style.display = "inline-block";
+  document.getElementById("btnPause").style.display = "none";
+  document.getElementById("btnResume").style.display = "none";
 });
 
-// ฟังก์ชันเริ่มบันทึกเสียงและแปลงเป็นข้อความ (STT)
-function startSpeechRecognition() {
-  let finalTranscript = "";
+// ฟังก์ชันเริ่มการบันทึกเสียง
+function startRecording() {
+  // finalTranscript = "";  // รีเซ็ต final transcript
   recognition = new (window.SpeechRecognition ||
     window.webkitSpeechRecognition)();
-  recognition.lang = document.getElementById("srcLang").value; // เลือกภาษาต้นทางจาก dropdown
+  recognition.lang = document.getElementById("srcLang").value; // กำหนดภาษาตามที่ผู้ใช้เลือก
   recognition.continuous = true;
   recognition.interimResults = true;
 
   recognition.onresult = function (event) {
-    let interimTranscript = "";
+    interimTranscript = "";
     for (let i = event.resultIndex; i < event.results.length; i++) {
       if (event.results[i].isFinal) {
         finalTranscript += event.results[i][0].transcript;
@@ -252,40 +278,75 @@ function startSpeechRecognition() {
 
     // ส่งข้อความที่จับจากเสียงไปแปล
     if (finalTranscript.length > 0) {
+      document.getElementById("aInput").value = finalTranscript;
       sendTextForTranslation(finalTranscript);
+    } else {
+      document.getElementById("aInput").value = interimTranscript;
     }
-
-    // แสดงข้อความที่จับได้จากเสียง
-    el("aInput").value = interimTranscript || finalTranscript;
   };
 
-  recognition.start();
+  recognition.start(); // เริ่มบันทึกเสียง
 }
 
-document.getElementById("btnUploadAudio").addEventListener("click", function () {
-  const audioFile = document.getElementById("audioFile").files[0];
-  if (!audioFile) {
-    alert("Please select an audio file first!");
-    return;
-  }
+// ฟังก์ชันเริ่มบันทึกเสียงและแปลงเป็นข้อความ (STT)
+// function startSpeechRecognition() {
+//   let finalTranscript = "";
+//   recognition = new (window.SpeechRecognition ||
+//     window.webkitSpeechRecognition)();
+//   recognition.lang = document.getElementById("srcLang").value; // เลือกภาษาต้นทางจาก dropdown
+//   recognition.continuous = true;
+//   recognition.interimResults = true;
 
-  const reader = new FileReader();
-  reader.onloadend = function () {
-    // ตรวจสอบว่าเป็น base64 string ที่ถูกต้อง
-    const audioBase64 = reader.result.split(',')[1]; // ตัด 'data:audio/wav;base64,' ออก
+//   recognition.onresult = function (event) {
+//     let interimTranscript = "";
+//     for (let i = event.resultIndex; i < event.results.length; i++) {
+//       if (event.results[i].isFinal) {
+//         finalTranscript += event.results[i][0].transcript;
+//       } else {
+//         interimTranscript += event.results[i][0].transcript;
+//       }
+//     }
 
-    const srcLang = document.getElementById("srcLang").value;
-    const tgtLang = document.getElementById("tgtLang").value;
+//     // ส่งข้อความที่จับจากเสียงไปแปล
+//     if (finalTranscript.length > 0) {
+//       sendTextForTranslation(finalTranscript);
+//     }
 
-    if (!srcLang || !tgtLang) {
-      console.log("[ERROR] Please ensure source and target languages are selected.");
+//     // แสดงข้อความที่จับได้จากเสียง
+//     el("aInput").value = interimTranscript || finalTranscript;
+//   };
+
+//   recognition.start();
+// }
+
+document
+  .getElementById("btnUploadAudio")
+  .addEventListener("click", function () {
+    const audioFile = document.getElementById("audioFile").files[0];
+    if (!audioFile) {
+      alert("Please select an audio file first!");
       return;
     }
 
-    // ส่งข้อมูลเสียงในรูปแบบ base64 ผ่าน WebSocket
-    socket.send(`${audioBase64}|${srcLang}|${tgtLang}|audio`);
-  };
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      // ตรวจสอบว่าเป็น base64 string ที่ถูกต้อง
+      const audioBase64 = reader.result.split(",")[1]; // ตัด 'data:audio/wav;base64,' ออก
 
-  // อ่านไฟล์เสียงเป็น base64
-  reader.readAsDataURL(audioFile);
-});
+      const srcLang = document.getElementById("srcLang").value;
+      const tgtLang = document.getElementById("tgtLang").value;
+
+      if (!srcLang || !tgtLang) {
+        console.log(
+          "[ERROR] Please ensure source and target languages are selected."
+        );
+        return;
+      }
+
+      // ส่งข้อมูลเสียงในรูปแบบ base64 ผ่าน WebSocket
+      socket.send(`${audioBase64}|${srcLang}|${tgtLang}|audio`);
+    };
+
+    // อ่านไฟล์เสียงเป็น base64
+    reader.readAsDataURL(audioFile);
+  });
