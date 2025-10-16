@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Speech Translation POC · Evidence-ready UI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="right" style="justify-content:space-between;margin-bottom:10px">
+      <h1>Speech Translation POC · <span class="muted">Evidence-ready UI</span></h1>
+    </div>
+
+    <div class="row">
+      <!-- Audio devices -->
+      <div class="card">
+        <div class="title">Audio Devices</div>
+        <div class="muted">Enumerate input/output devices for demo evidence</div>
+        <div class="grid2" style="margin-top:8px">
+          <div>
+            <div class="muted" style="margin:6px 0">Input device</div>
+            <select id="inDev"></select>
+          </div>
+          <div>
+            <div class="muted" style="margin:6px 0">Output device</div>
+            <select id="outDev"></select>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <button id="btnScan" class="btn-ghost">Scan devices</button>
+        </div>
+
+        <div style="margin-top:16px">
+          <div class="title" style="margin-bottom:8px">Capture</div>
+          <div class="stack">
+            <button id="btnRec" class="btn-green">● Record</button>
+            <button id="btnStop" class="btn-ghost" style="display:none;">Stop</button>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <div class="title" style="margin-bottom:8px">Upload file</div>
+          <div class="stack">
+            <!-- Input สำหรับการเลือกไฟล์เสียง -->
+            <input type="file" id="audioFile" accept=".wav" />
+
+            <!-- ปุ่มเพื่อส่งไฟล์เสียงไปยัง Backend -->
+            <button onclick="uploadAudio()">Upload Audio</button>
+
+          </div>
+        </div>
+
+        <div style="margin-top:16px">
+          <div class="title" style="margin-bottom:8px">Settings</div>
+          <div class="grid3">
+            <div>
+              <div class="muted" style="margin:6px 0">Chunk size</div>
+              <select id="chunk">
+                <option>20 ms</option>
+                <option>40 ms</option>
+                <option>80 ms</option>
+              </select>
+            </div>
+            <div>
+              <div class="muted" style="margin:6px 0">VAD sensitivity</div>
+              <select id="vad">
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+              </select>
+            </div>
+            <div>
+              <div class="muted" style="margin:6px 0">Target voice</div>
+              <select id="voice">
+                <option>Standard</option>
+                <option>Female</option>
+                <option>Male</option>
+              </select>
+            </div>
+          </div>
+          <label class="right" style="margin-top:8px; justify-content:flex-start;">
+            <input id="autoTranslate" type="checkbox" checked style="margin-right:8px">
+            Auto-translate (idle 0.5s)
+            <span class="hint" style="margin-left:8px">Hotkey: Ctrl+Enter</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Speakers -->
+      <div class="card">
+        <div class="grid2">
+          <div>
+            <div class="right" style="justify-content:space-between">
+              <div class="title">Speaker A</div>
+              <span class="badge" id="aState">idle</span>
+            </div>
+            <select id="srcLang" data-prev-value=""></select>
+            <!-- <textarea id="aPartial" class="muted" style="margin-top:8px" placeholder="(partial) กำลังรับเสียง..."></textarea> -->
+            <textarea id="aInput" style="margin-top:8px" placeholder="พิมพ์/แก้ไขข้อความก่อนแปล..."></textarea>
+            <div class="stack" style="margin-top:8px">
+              <button id="btnTranslate" class="btn-blue">Translate</button>
+              <button id="btnReadSrc" class="btn-ghost" onclick="speakText('aInput', 'srcLang')">🔊 Read source</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="right" style="justify-content:space-between">
+              <div class="title">Speaker B</div>
+              <span class="badge" id="bState">waiting</span>
+              <!-- <div class="loader"></div> -->
+            </div>
+            <select id="tgtLang"></select>
+            <textarea id="bOutput" style="margin-top:8px" placeholder="ผลลัพธ์จะแสดงที่นี่..."></textarea>
+            <div class="stack" style="margin-top:8px">
+              <button id="btnReadTgt" class="btn-ghost" onclick="speakText('bOutput', 'tgtLang')">🔊 Read
+                target</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="functions.js"></script>
+</body>
+
+</html>

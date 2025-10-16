@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="th">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Speech Translation POC · Evidence-ready UI (no-framework)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="right" style="justify-content:space-between;margin-bottom:10px">
+      <h1>Speech Translation POC · <span class="muted">Evidence-ready UI</span></h1>
+    </div>
+
+    <div class="row">
+      <!-- Audio devices -->
+      <div class="card">
+        <div class="title">Audio Devices</div>
+        <div class="muted">Enumerate input/output devices for demo evidence</div>
+        <div class="grid2" style="margin-top:8px">
+          <div>
+            <div class="muted" style="margin:6px 0">Input device</div>
+            <select id="inDev"></select>
+          </div>
+          <div>
+            <div class="muted" style="margin:6px 0">Output device</div>
+            <select id="outDev"></select>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <button id="btnScan" class="btn-ghost">Scan devices</button>
+        </div>
+
+        <div style="margin-top:16px">
+          <div class="title" style="margin-bottom:8px">Capture</div>
+          <div class="stack">
+            <button id="btnRec" class="btn-green">● Record</button>
+            <button id="btnPause" class="btn-ghost">⏸ Pause</button>
+          </div>
+          <div class="kpi" style="margin-top:12px">
+            <div class="chip">
+              <div class="muted">STT</div>
+              <div id="sttKpi">0.32s</div>
+            </div>
+            <div class="chip">
+              <div class="muted">MT</div>
+              <div id="mtKpi">0.45s</div>
+            </div>
+            <div class="chip">
+              <div class="muted">TTS</div>
+              <div id="ttsKpi">0.58s</div>
+            </div>
+          </div>
+          <div class="hint" id="totalLatency" style="margin-top:6px">Total latency ≤ 5s · Now: 1.35s</div>
+          <div class="grid3" style="margin-top:6px">
+            <input id="sttLat" type="text" value="0.32" />
+            <input id="mtLat" type="text" value="0.45" />
+            <input id="ttsLat" type="text" value="0.58" />
+          </div>
+        </div>
+
+        <div style="margin-top:16px">
+          <div class="title" style="margin-bottom:8px">Settings</div>
+          <div class="grid3">
+            <div>
+              <div class="muted" style="margin:6px 0">Chunk size</div>
+              <select id="chunk">
+                <option>20 ms</option>
+                <option>40 ms</option>
+                <option>80 ms</option>
+              </select>
+            </div>
+            <div>
+              <div class="muted" style="margin:6px 0">VAD sensitivity</div>
+              <select id="vad">
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+              </select>
+            </div>
+            <div>
+              <div class="muted" style="margin:6px 0">Target voice</div>
+              <select id="voice">
+                <option>Standard</option>
+                <option>Female</option>
+                <option>Male</option>
+              </select>
+            </div>
+          </div>
+          <label class="right" style="margin-top:8px; justify-content:flex-start;">
+            <input id="autoTranslate" type="checkbox" checked style="margin-right:8px">
+            Auto-translate (idle 0.5s)
+            <span class="hint" style="margin-left:8px">Hotkey: Ctrl+Enter</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Speakers -->
+      <div class="card">
+        <div class="grid2">
+          <!-- Speaker A -->
+          <div>
+            <div class="right" style="justify-content:space-between">
+              <div class="title">Speaker A</div>
+              <span class="badge" id="aState">idle</span>
+            </div>
+            <select id="srcLang"></select>
+            <textarea id="aPartial" readonly class="muted" style="margin-top:8px"
+              placeholder="(partial) กำลังรับเสียง..."></textarea>
+            <textarea id="aInput" style="margin-top:8px" placeholder="พิมพ์/แก้ไขข้อความก่อนแปล..."></textarea>
+            <div class="stack" style="margin-top:8px">
+              <button id="btnTranslate" class="btn-blue">Translate</button>
+              <button id="btnReadSrc" class="btn-ghost">🔊 Read source</button>
+            </div>
+          </div>
+
+          <!-- Speaker B -->
+          <div>
+            <div class="right" style="justify-content:space-between">
+              <div class="title">Speaker B</div>
+              <span class="badge" id="bState">waiting</span>
+            </div>
+            <select id="tgtLang"></select>
+            <textarea id="bOutput" style="margin-top:8px" placeholder="ผลลัพธ์จะแสดงที่นี่..."></textarea>
+            <div class="stack" style="margin-top:8px">
+              <button id="btnReadTgt" class="btn-ghost">🔊 Read target</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Evidence -->
+        <div class="card" style="margin-top:12px">
+          <div class="right" style="justify-content:space-between; margin-bottom:6px">
+            <div class="title">Evidence</div>
+            <div class="footerbar">
+              <button id="btnMark" class="btn-ghost">Mark pair shown</button>
+              <button id="btnPrint" class="btn">Print (PDF)</button>
+            </div>
+          </div>
+          <div class="hint" id="pairsBar">Pairs shown: 0 / 10</div>
+          <div style="height:6px; background:#eef2ff; border-radius:999px; margin:8px 0">
+            <div id="pairsProg" style="height:6px; width:0%; background:#6366f1; border-radius:999px"></div>
+          </div>
+          <table id="tbl">
+            <thead>
+              <tr>
+                <th style="width:140px">Time</th>
+                <th style="width:120px">Pair</th>
+                <th>Text</th>
+                <th style="width:90px">STT(s)</th>
+                <th style="width:90px">MT(s)</th>
+                <th style="width:90px">TTS(s)</th>
+                <th style="width:90px">Total(s)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="7" class="muted" style="text-align:center">No logs yet. Translate some text to populate.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+<script src="functions.js"></script>
+</html>

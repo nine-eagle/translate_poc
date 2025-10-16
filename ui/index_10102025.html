@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Speech Translation POC · Evidence-ready UI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>*{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue','Noto Sans',sans-serif} @media print {.no-print{display:none !important}}</style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+<header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="text-sm text-slate-600"><span class="font-semibold">Speech Translation POC</span> · Evidence-ready UI</div>
+    <button class="hidden md:inline-flex px-3 py-1.5 rounded-xl border bg-white hover:bg-slate-50 no-print" onclick="document.getElementById('evidence').scrollIntoView({behavior:'smooth'})">Evidence</button>
+  </div>
+</header>
+<main class="max-w-6xl mx-auto px-4 py-6 grid lg:grid-cols-3 gap-6">
+  <section class="lg:col-span-1 space-y-4">
+    <div class="bg-white rounded-2xl shadow-sm border p-4">
+      <h3 class="font-medium mb-3">Audio Devices</h3>
+      <div class="flex items-center justify-between gap-3 mb-2">
+        <span class="text-xs text-slate-500">Enumerate input/output devices for demo evidence</span>
+        <button class="px-3 py-1.5 rounded-xl border bg-white hover:bg-slate-50 no-print" onclick="scanDevices()">Scan devices</button>
+      </div>
+      <label class="text-sm text-slate-600">Input device</label>
+      <select id="inDev" class="w-full mt-1 mb-3 px-3 py-2 rounded-xl border bg-white"></select>
+      <label class="text-sm text-slate-600">Output device</label>
+      <select id="outDev" class="w-full mt-1 px-3 py-2 rounded-xl border bg-white"></select>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border p-4 flex flex-col gap-3">
+      <h3 class="font-medium">Capture</h3>
+      <div class="flex items-center gap-3">
+        <button id="recordBtn" class="flex-1 px-4 py-3 rounded-2xl font-medium text-white bg-emerald-600 hover:bg-emerald-700 no-print" onclick="toggleRecord()">● Record</button>
+        <button class="px-4 py-3 rounded-2xl border bg-white hover:bg-slate-50 no-print">⏸ Pause</button>
+      </div>
+      <div class="grid grid-cols-3 gap-3 text-center text-sm">
+        <div class="rounded-xl bg-slate-50 border p-3"><div class="text-xs text-slate-500">STT</div><div id="sttTile" class="text-lg font-semibold">0.32s</div></div>
+        <div class="rounded-xl bg-slate-50 border p-3"><div class="text-xs text-slate-500">MT</div><div id="mtTile" class="text-lg font-semibold">0.45s</div></div>
+        <div class="rounded-xl bg-slate-50 border p-3"><div class="text-xs text-slate-500">TTS</div><div id="ttsTile" class="text-lg font-semibold">0.58s</div></div>
+      </div>
+      <div class="text-center text-xs text-slate-600">Total latency ≤ 5s · Now: <span id="totalTile" class="font-semibold">1.35s</span></div>
+      <div class="grid grid-cols-3 gap-2 text-xs mt-2">
+        <label class="flex items-center gap-1">STT <input id="sttNum" class="w-full px-2 py-1 border rounded-lg" type="number" step="0.01" value="0.32" oninput="updateTiles()"/></label>
+        <label class="flex items-center gap-1">MT <input id="mtNum" class="w-full px-2 py-1 border rounded-lg" type="number" step="0.01" value="0.45" oninput="updateTiles()"/></label>
+        <label class="flex items-center gap-1">TTS <input id="ttsNum" class="w-full px-2 py-1 border rounded-lg" type="number" step="0.01" value="0.58" oninput="updateTiles()"/></label>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border p-4">
+      <h3 class="font-medium mb-3">Settings</h3>
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div><label class="text-slate-600">Chunk size</label><select class="w-full mt-1 px-3 py-2 rounded-xl border bg-white"><option>20 ms</option><option>40 ms</option><option>60 ms</option></select></div>
+        <div><label class="text-slate-600">VAD sensitivity</label><select class="w-full mt-1 px-3 py-2 rounded-xl border bg-white"><option>Low</option><option>Medium</option><option>High</option></select></div>
+        <div><label class="text-slate-600">Quality</label><select id="quality" class="w-full mt-1 px-3 py-2 rounded-xl border bg-white"><option value="fast" selected>Fast (600M)</option><option value="high">High (3.3B)</option></select></div>
+        <div><label class="text-slate-600">Target voice</label><select id="voiceGender" class="w-full mt-1 px-3 py-2 rounded-xl border bg-white"><option value="standard" selected>Standard</option><option value="female">Female</option><option value="male">Male</option></select></div>
+        <div class="col-span-2 flex items-center gap-3 mt-2"><label class="flex items-center gap-2 text-sm"><input id="autoChk" type="checkbox" class="accent-indigo-600" checked onchange="updateAuto()" /> Auto-translate (idle 0.5s)</label><span class="text-xs text-slate-500">Hotkey: Ctrl+Enter</span></div>
+      </div>
+    </div>
+  </section>
+  <section class="lg:col-span-2 space-y-4">
+    <div class="md:hidden bg-white rounded-2xl shadow-sm border p-3 flex items-center gap-2">
+      <select id="srcMob" class="px-3 py-2 rounded-xl border bg-white flex-1"></select>
+      <button class="px-3 py-2 rounded-xl border bg-white" onclick="swapLangs()">↔</button>
+      <select id="tgtMob" class="px-3 py-2 rounded-xl border bg-white flex-1"></select>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-2xl shadow-sm border p-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2"><h3 class="font-medium">Speaker A</h3><select id="srcSel" class="px-2 py-1 rounded-lg border bg-white text-sm"></select></div>
+          <span id="statusBadge" class="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">idle</span>
+        </div>
+        <div class="h-44 overflow-auto rounded-xl border bg-slate-50 p-3 text-sm space-y-2"><div class="text-slate-500">(partial) กำลังรับเสียง…</div></div>
+        <textarea id="srcTxt" class="mt-3 w-full rounded-xl border bg-white px-3 py-2" placeholder="พิมพ์/แก้ไขข้อความก่อนแปล…"></textarea>
+        <div class="mt-3 flex items-center gap-2">
+          <button class="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 no-print" onclick="doTranslate()">Translate</button>
+          <button class="px-4 py-2 rounded-xl border bg-white hover:bg-slate-50 no-print" onclick="readSource()">🔊 Read source</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border p-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2"><h3 class="font-medium">Speaker B</h3><select id="tgtSel" class="px-2 py-1 rounded-lg border bg-white text-sm"></select></div>
+          <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">waiting</span>
+        </div>
+        <div id="tgtBox" class="h-44 overflow-auto rounded-xl border bg-slate-50 p-3 text-sm"><span class="text-slate-500">ผลลัพธ์จะแสดงที่นี่…</span></div>
+        <div class="mt-3 flex items-center gap-2">
+          <button class="px-4 py-2 rounded-xl border bg-white hover:bg-slate-50 no-print" onclick="readTarget()">🔊 Read target</button>
+          <audio id="player"></audio>
+        </div>
+      </div>
+    </div>
+    <div id="evidence" class="bg-white rounded-2xl shadow-sm border p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-medium">Evidence</h3>
+        <div class="flex items-center gap-2">
+          <button class="px-3 py-1.5 rounded-xl border bg-white hover:bg-slate-50 no-print" onclick="markPair()">Mark pair shown</button>
+          <button class="px-3 py-1.5 rounded-xl border bg-white hover:bg-slate-50 no-print" onclick="window.print()">Print (PDF)</button>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="flex items-center justify-between text-xs text-slate-600 mb-1"><span>Pairs shown: <span id="pairCount" class="font-semibold">0</span> / 10</span><span id="pairPct">0%</span></div>
+        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden"><div id="pairBar" class="h-2 bg-indigo-500" style="width:0%"></div></div>
+        <div id="pairList" class="mt-2 text-xs text-slate-500">No pairs marked yet</div>
+      </div>
+      <div class="overflow-auto rounded-xl border">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600"><tr><th class="text-left px-3 py-2">Time</th><th class="text-left px-3 py-2">Pair</th><th class="text-left px-3 py-2">Text</th><th class="text-right px-3 py-2">STT(s)</th><th class="text-right px-3 py-2">MT(s)</th><th class="text-right px-3 py-2">TTS(s)</th><th class="text-right px-3 py-2">Total(s)</th></tr></thead>
+          <tbody id="logBody"><tr><td colspan="7" class="px-3 py-6 text-center text-slate-500">No logs yet. Translate some text to populate.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="border-t bg-white/60"><div class="max-w-6xl mx-auto px-4 py-3 text-xs text-slate-500 flex flex-wrap gap-x-6 gap-y-2"><div>Input: PCM WAV 16kHz · 16-bit mono</div><div>MT: NLLB-200 (600M / 3.3B)</div><div>TTS: edge-tts</div><div>Auth: Demo</div></div></footer>
+<script>
+const BACKEND=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8000':location.origin;
+const LANGS=[{id:'th',label:'ไทย (Thai)'},{id:'en',label:'อังกฤษ (English)'},{id:'es',label:'สเปน (Spanish)'},{id:'fr',label:'ฝรั่งเศส (French)'},{id:'it',label:'อิตาลี (Italian)'},{id:'ru',label:'รัสเซีย (Russian)'},{id:'de',label:'เยอรมัน (German)'},{id:'zh',label:'จีน (Chinese)'},{id:'ko',label:'เกาหลี (Korean)'},{id:'ja',label:'ญี่ปุ่น (Japanese)'},{id:'ar',label:'อาหรับ (Arabic)'}];
+let state={src:'th',tgt:'en',auto:true,pairs:new Set(),debounce:null};
+function byId(id){return document.getElementById(id)}
+function fillLang(el,list){el.innerHTML='';list.forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.label;el.appendChild(o)})}
+function buildTargetOptions(srcId){const th=LANGS.find(l=>l.id==='th');const base=LANGS.filter(l=>l.id!==srcId&&l.id!=='th');return[...base,th]}
+function syncSelectors(){fillLang(byId('srcSel'),LANGS);fillLang(byId('srcMob'),LANGS);const tgtList=buildTargetOptions(state.src);fillLang(byId('tgtSel'),tgtList);fillLang(byId('tgtMob'),tgtList);byId('srcSel').value=state.src;byId('srcMob').value=state.src;byId('tgtSel').value=state.tgt;byId('tgtMob').value=state.tgt}
+function updateAuto(){state.auto=byId('autoChk').checked}
+function swapLangs(){const s=state.src;state.src=state.tgt;state.tgt=s;syncSelectors()}
+async function scanDevices(){const i=byId('inDev'),o=byId('outDev');i.innerHTML='';o.innerHTML='';try{if(navigator.mediaDevices?.getUserMedia){await navigator.mediaDevices.getUserMedia({audio:true})}const list=await navigator.mediaDevices?.enumerateDevices?.();const ins=(list||[]).filter(d=>d.kind==='audioinput').map(d=>d.label||d.deviceId);const outs=(list||[]).filter(d=>d.kind==='audiooutput').map(d=>d.label||d.deviceId);(ins.length?ins:['Default microphone','USB Mic','Bluetooth Mic']).forEach(x=>{const op=document.createElement('option');op.text=x;op.value=x;i.appendChild(op)});(outs.length?outs:['Default speaker','USB Speaker','Bluetooth Headset']).forEach(x=>{const op=document.createElement('option');op.text=x;op.value=x;o.appendChild(op)})}catch(e){['Default microphone','USB Mic','Bluetooth Mic'].forEach(x=>{const op=document.createElement('option');op.text=x;i.appendChild(op)});['Default speaker','USB Speaker','Bluetooth Headset'].forEach(x=>{const op=document.createElement('option');op.text=x;o.appendChild(op)})}}
+function updateTiles(){const stt=Number(byId('sttNum').value||0),mt=Number(byId('mtNum').value||0),tts=Number(byId('ttsNum').value||0);byId('sttTile').textContent=stt.toFixed(2)+'s';byId('mtTile').textContent=mt.toFixed(2)+'s';byId('ttsTile').textContent=tts.toFixed(2)+'s';byId('totalTile').textContent=(stt+mt+tts).toFixed(2)+'s'}
+function toggleRecord(){const btn=byId('recordBtn'),badge=byId('statusBadge');const on=btn.textContent.includes('●');if(on){btn.textContent='■ Stop';btn.classList.remove('bg-emerald-600');btn.classList.add('bg-rose-600');badge.textContent='listening…';badge.className='bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full'}else{btn.textContent='● Record';btn.classList.remove('bg-rose-600');btn.classList.add('bg-emerald-600');badge.textContent='idle';badge.className='bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full'}}
+function markPair(){const key=`${state.src}→${state.tgt}`;state.pairs.add(key);const count=state.pairs.size;byId('pairCount').textContent=count;const pct=Math.min(100,Math.round(count/10*100));byId('pairPct').textContent=pct+'%';byId('pairBar').style.width=pct+'%';byId('pairList').textContent=Array.from(state.pairs).join(', ')}
+function addLogRow(r){const tb=byId('logBody');if(tb.children.length===1&&tb.children[0].querySelector('td')?.getAttribute('colspan'))tb.innerHTML='';const tr=document.createElement('tr');tr.className='odd:bg-white even:bg-slate-50';const td=(t,c)=>{const el=document.createElement('td');el.className=c;el.textContent=t;return el};tr.appendChild(td(new Date(r.ts).toLocaleTimeString(),'px-3 py-2 whitespace-nowrap'));tr.appendChild(td(`${r.src}→${r.tgt}`,'px-3 py-2 whitespace-nowrap'));const tt=document.createElement('td');tt.className='px-3 py-2 max-w-[28rem] truncate';tt.title=r.text;tt.textContent=r.text;tr.appendChild(tt);tr.appendChild(td(r.stt.toFixed(2),'px-3 py-2 text-right'));tr.appendChild(td(r.mt.toFixed(2),'px-3 py-2 text-right'));tr.appendChild(td(r.tts.toFixed(2),'px-3 py-2 text-right'));tr.appendChild(td(r.total.toFixed(2),'px-3 py-2 text-right font-medium'));tb.prepend(tr)}
+function debounceRun(){if(!state.auto)return; if(state.debounce)clearTimeout(state.debounce); state.debounce=setTimeout(doTranslate,500)}
+async function doTranslate(){const text=byId('srcTxt').value.trim();const quality=byId('quality').value;if(!text){byId('tgtBox').innerHTML='<span class="text-slate-500">ผลลัพธ์จะแสดงที่นี่…</span>';return}try{const res=await fetch(`${BACKEND}/translate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,src:state.src,tgt:state.tgt,quality})});const j=await res.json();byId('tgtBox').textContent=j.translation||'';const stt=Number(byId('sttNum').value||0),mt=Number(byId('mtNum').value||0),tts=Number(byId('ttsNum').value||0);addLogRow({ts:new Date().toISOString(),src:state.src,tgt:state.tgt,text,stt,mt,tts,total:stt+mt+tts});markPair()}catch(e){byId('tgtBox').textContent='(error)'}}
+async function speakText(text,lang,gender){const res=await fetch(`${BACKEND}/speak`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,lang,gender})});const buf=await res.arrayBuffer();const url=URL.createObjectURL(new Blob([buf],{type:'audio/mpeg'}));const p=byId('player');p.src=url;p.play()}
+function readSource(){const t=byId('srcTxt').value.trim();if(!t)return; const g=byId('voiceGender').value;speakText(t,state.src,g)}
+function readTarget(){const t=byId('tgtBox').textContent.trim();if(!t)return; const g=byId('voiceGender').value;speakText(t,state.tgt,g)}
+byId('srcTxt').addEventListener('input',debounceRun);byId('srcTxt').addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();doTranslate()}});
+byId('srcSel').addEventListener('change',e=>{state.src=e.target.value;syncSelectors()});byId('srcMob').addEventListener('change',e=>{state.src=e.target.value;syncSelectors()});byId('tgtSel').addEventListener('change',e=>{state.tgt=e.target.value});byId('tgtMob').addEventListener('change',e=>{state.tgt=e.target.value});
+syncSelectors();scanDevices();updateTiles();
+</script>
+</body></html>
