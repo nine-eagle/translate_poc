@@ -46,17 +46,6 @@
             <button id="btnStop" class="btn-ghost" style="display:none;">Stop</button>
           </div>
         </div>
-        <div style="margin-top:16px">
-          <div class="title" style="margin-bottom:8px">Upload file</div>
-          <div class="stack">
-            <!-- Input สำหรับการเลือกไฟล์เสียง -->
-            <input type="file" id="audioFile" accept=".wav" />
-
-            <!-- ปุ่มเพื่อส่งไฟล์เสียงไปยัง Backend -->
-            <button onclick="uploadAudio()">Upload Audio</button>
-
-          </div>
-        </div>
 
         <div style="margin-top:16px">
           <div class="title" style="margin-bottom:8px">Settings</div>
@@ -103,11 +92,21 @@
               <span class="badge" id="aState">idle</span>
             </div>
             <select id="srcLang" data-prev-value=""></select>
-            <!-- <textarea id="aPartial" class="muted" style="margin-top:8px" placeholder="(partial) กำลังรับเสียง..."></textarea> -->
-            <textarea id="aInput" style="margin-top:8px" placeholder="พิมพ์/แก้ไขข้อความก่อนแปล..."></textarea>
+            <div style="margin-top:16px">
+              <div class="title" style="margin-bottom:8px">Upload file</div>
+              <div class="stack">
+                <!-- Input สำหรับการเลือกไฟล์เสียง -->
+                <input type="file" id="audioFile" accept=".wav" />
+
+                <!-- ปุ่มเพื่อส่งไฟล์เสียงไปยัง Backend -->
+                <button id="btnUploadAudio">Upload Audio</button>
+
+              </div>
+            </div>
+            <textarea id="aInput" style="margin-top:10px" placeholder="พิมพ์/แก้ไขข้อความก่อนแปล..."></textarea>
             <div class="stack" style="margin-top:8px">
               <button id="btnTranslate" class="btn-blue">Translate</button>
-              <button id="btnReadSrc" class="btn-ghost" onclick="speakText('aInput', 'srcLang')">🔊 Read source</button>
+              <button id="btnReadSrc" class="btn-ghost" onclick="speakText('aInput', 'srcLang')">Read source</button>
             </div>
           </div>
 
@@ -120,7 +119,7 @@
             <select id="tgtLang"></select>
             <textarea id="bOutput" style="margin-top:8px" placeholder="ผลลัพธ์จะแสดงที่นี่..."></textarea>
             <div class="stack" style="margin-top:8px">
-              <button id="btnReadTgt" class="btn-ghost" onclick="speakText('bOutput', 'tgtLang')">🔊 Read
+              <button id="btnReadTgt" class="btn-ghost" onclick="speakText('bOutput', 'tgtLang')">Read
                 target</button>
             </div>
           </div>

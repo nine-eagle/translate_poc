@@ -123,13 +123,29 @@ socket.onopen = function () {
 // เมื่อได้รับข้อความจาก WebSocket (ข้อความแปล)
 socket.onmessage = function (event) {
   const [original, translated, action] = event.data.split("\n");
+
+  // ดึง action จากข้อความ
   const trimmedAction = action.split(": ")[1];
+
   if (trimmedAction == "change_srcLang") {
-    document.getElementById("aInput").value = translated.split(": ")[1]; // ข้อความต้นทาง (STT)
+    // หาก action เป็น "change_srcLang", แสดงข้อความต้นทางใน input
+    const originalText = original.split(": ")[1];
+    document.getElementById("aInput").value = originalText; // ข้อความต้นทาง (STT)
+  } else if (trimmedAction == "audio") {
+    // หาก action เป็น "audio" (เสียงที่แปลงเป็นข้อความ), แสดงข้อความต้นทางใน input
+    const sttText = original.split(": ")[1];
+    document.getElementById("aInput").value = sttText; // ข้อความต้นทาง (STT)
+
+    // แสดงข้อความแปลใน bOutput
+    const translatedText = translated.split(": ")[1];
+    document.getElementById("bOutput").value = translatedText; // ข้อความแปลจากเสียง (STT)
   } else {
-    document.getElementById("bOutput").value = translated.split(": ")[1]; // ข้อความแปล
+    // สำหรับการแปลข้อความจากการส่งข้อความปกติ
+    const translatedText = translated.split(": ")[1];
+    document.getElementById("bOutput").value = translatedText; // ข้อความแปล
   }
 };
+
 
 // ส่งข้อความที่จับจากเสียงและภาษาไป WebSocket
 function sendTextForTranslation(text) {
@@ -241,3 +257,31 @@ function startSpeechRecognition() {
 
   recognition.start();
 }
+
+document.getElementById("btnUploadAudio").addEventListener("click", function () {
+  const audioFile = document.getElementById("audioFile").files[0];
+  if (!audioFile) {
+    alert("Please select an audio file first!");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onloadend = function () {
+    // ตรวจสอบว่าเป็น base64 string ที่ถูกต้อง
+    const audioBase64 = reader.result.split(',')[1]; // ตัด 'data:audio/wav;base64,' ออก
+
+    const srcLang = document.getElementById("srcLang").value;
+    const tgtLang = document.getElementById("tgtLang").value;
+
+    if (!srcLang || !tgtLang) {
+      console.log("[ERROR] Please ensure source and target languages are selected.");
+      return;
+    }
+
+    // ส่งข้อมูลเสียงในรูปแบบ base64 ผ่าน WebSocket
+    socket.send(`${audioBase64}|${srcLang}|${tgtLang}|audio`);
+  };
+
+  // อ่านไฟล์เสียงเป็น base64
+  reader.readAsDataURL(audioFile);
+});

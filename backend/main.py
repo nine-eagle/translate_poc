@@ -1,8 +1,9 @@
+import base64
+import io
+import speech_recognition as sr
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
-import speech_recognition as sr
-import io
 
 # Loading the translation model
 MODEL_NAME = "facebook/nllb-200-distilled-600M"
@@ -32,7 +33,6 @@ app = FastAPI()
 
 def translate(text: str, src: str, tgt: str) -> str:
     try:
-        # ดึงรหัสของภาษาต้นทางและปลายทาง
         src_code = LANG_CODES.get(src)
         tgt_code = LANG_CODES.get(tgt)
         
@@ -42,7 +42,6 @@ def translate(text: str, src: str, tgt: str) -> str:
         tokenizer.src_lang = src_code
         inputs = tokenizer(text, return_tensors="pt")
 
-        # ใช้รหัสภาษาเป้าหมายในการแปล
         forced_bos_id = lang_token_ids.get(tgt_code, tokenizer.convert_tokens_to_ids(tgt_code))
 
         with torch.no_grad():
@@ -58,6 +57,27 @@ def translate(text: str, src: str, tgt: str) -> str:
     except Exception as e:
         return f"[ERROR] {str(e)}"
 
+# ฟังก์ชันแปลง base64 เป็นไฟล์เสียงแล้วแปลงเป็นข้อความ
+def audio_to_text(audio_base64: str, language_code: str) -> str:
+    try:
+        # ตรวจสอบว่าเป็น base64 ที่ถูกต้อง
+        try:
+            audio_data = base64.b64decode(audio_base64)
+        except Exception as e:
+            return f"[ERROR] Invalid base64 string: {str(e)}"
+
+        recognizer = sr.Recognizer()
+        audio_file = io.BytesIO(audio_data)
+
+        with sr.AudioFile(audio_file) as source:
+            audio = recognizer.record(source)
+
+        text = recognizer.recognize_google(audio, language=language_code)
+        return text
+
+    except Exception as e:
+        return f"[ERROR] {str(e)}"
+
 # WebSocket endpoint to handle real-time communication
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -65,15 +85,29 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            # คาดว่าได้รับข้อมูลในรูปแบบ text|src_lang|tgt_lang|action
-            text, src_lang, tgt_lang, action = data.split('|')
+            parts = data.split('|')
 
-            # แปลข้อความ
-            translated_text = translate(text, src_lang, tgt_lang)
+            if parts[-1] == "audio":
+                audio_base64 = parts[0]  # ข้อมูลเสียงในรูปแบบ base64
+                src_lang = parts[1]
+                tgt_lang = parts[2]
 
-            # ส่งข้อความแปลกลับไปยัง Frontend
-            await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nAction: {action}")
+                # ตรวจสอบว่า src_lang_code เป็น None หรือไม่
+                src_lang_code = LANG_CODES.get(src_lang)
+                if not src_lang_code:
+                    src_lang_code = "en"  # ใช้ภาษาอังกฤษเป็นค่าเริ่มต้นถ้าไม่พบ
+
+                # แปลงไฟล์เสียงเป็นข้อความ
+                text = audio_to_text(audio_base64, src_lang_code)
+
+                # ส่งข้อความที่แปลงกลับไปยัง Frontend
+                translated_text = translate(text, src_lang, tgt_lang)
+                await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nAction: audio")
+            else:
+                # ข้อมูลข้อความที่ปกติ
+                text, src_lang, tgt_lang, action = parts
+                translated_text = translate(text, src_lang, tgt_lang)
+                await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nAction: {action}")
+
     except WebSocketDisconnect:
         print("Client disconnected")
-
-
