@@ -1,9 +1,9 @@
-import base64
-import io
-import speech_recognition as sr
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
+import speech_recognition as sr
+import base64
+import io
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 # Loading the translation model
 MODEL_NAME = "facebook/nllb-200-distilled-600M"
@@ -57,14 +57,11 @@ def translate(text: str, src: str, tgt: str) -> str:
     except Exception as e:
         return f"[ERROR] {str(e)}"
 
-# ฟังก์ชันแปลง base64 เป็นไฟล์เสียงแล้วแปลงเป็นข้อความ
+# ฟังก์ชันแปลง base64 เป็นไฟล์เสียงแล้วแปลงเป็นข้อความ (Speech-to-Text)
 def audio_to_text(audio_base64: str, language_code: str) -> str:
     try:
-        # ตรวจสอบว่าเป็น base64 ที่ถูกต้อง
-        try:
-            audio_data = base64.b64decode(audio_base64)
-        except Exception as e:
-            return f"[ERROR] Invalid base64 string: {str(e)}"
+        # แปลงข้อมูล base64 กลับเป็น bytes
+        audio_data = base64.b64decode(audio_base64)
 
         recognizer = sr.Recognizer()
         audio_file = io.BytesIO(audio_data)
@@ -72,7 +69,8 @@ def audio_to_text(audio_base64: str, language_code: str) -> str:
         with sr.AudioFile(audio_file) as source:
             audio = recognizer.record(source)
 
-        text = recognizer.recognize_google(audio, language=language_code)
+        # ใช้ pocketsphinx (offline STT)
+        text = recognizer.recognize_sphinx(audio)  # ใช้ pocketsphinx ที่ทำงานแบบออฟไลน์
         return text
 
     except Exception as e:
@@ -93,15 +91,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 tgt_lang = parts[2]
 
                 # ตรวจสอบว่า src_lang_code เป็น None หรือไม่
-                src_lang_code = LANG_CODES.get(src_lang)
-                if not src_lang_code:
-                    src_lang_code = "en"  # ใช้ภาษาอังกฤษเป็นค่าเริ่มต้นถ้าไม่พบ
+                src_lang_code = LANG_CODES.get(src_lang, "en")
+                tgt_lang_code = LANG_CODES.get(tgt_lang, "en")
 
                 # แปลงไฟล์เสียงเป็นข้อความ
                 text = audio_to_text(audio_base64, src_lang_code)
 
-                # ส่งข้อความที่แปลงกลับไปยัง Frontend
+                # แปลข้อความ
                 translated_text = translate(text, src_lang, tgt_lang)
+
+                # ส่งข้อความที่แปลงกลับไปยัง Frontend
                 await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nAction: audio")
             else:
                 # ข้อมูลข้อความที่ปกติ

@@ -124,6 +124,7 @@ socket.onopen = function () {
 socket.onmessage = function (event) {
   const [original, translated, action] = event.data.split("\n");
 
+  el("bState").textContent = "Waitting"
   // ดึง action จากข้อความ
   const trimmedAction = action.split(": ")[1];
 
@@ -144,6 +145,7 @@ socket.onmessage = function (event) {
     const translatedText = translated.split(": ")[1];
     document.getElementById("bOutput").value = translatedText; // ข้อความแปล
   }
+  el("bState").textContent = "Finish"
 };
 
 
@@ -165,6 +167,7 @@ function sendTextForTranslation(text) {
 
 // เมื่อคลิกปุ่ม Translate เพื่อแปลข้อความที่ผู้ใช้แก้ไขและเลือกภาษาต้นทางใหม่
 document.getElementById("btnTranslate").addEventListener("click", function () {
+  el("bState").textContent = "Waitting"
   let text = document.getElementById("aInput").value; // ข้อความที่ผู้ใช้แก้ไข
   let srcLang = document.getElementById("srcLang").value; // ภาษาเริ่มต้นที่เลือกใหม่
   let tgtLang = document.getElementById("tgtLang").value; // ภาษาเป้าหมาย
@@ -202,6 +205,7 @@ document.getElementById("srcLang").addEventListener("change", function () {
 
 // เมื่อผู้ใช้เปลี่ยนภาษาเป้าหมาย
 document.getElementById("tgtLang").addEventListener("change", function () {
+  el("bState").textContent = "Waitting"
   let text = document.getElementById("aInput").value;
   let srcLang = document.getElementById("srcLang").value;
   let tgtLang = this.value;
