@@ -157,7 +157,7 @@ socket.onmessage = function (event) {
     // แสดงเวลา STT และ MT ในตาราง
     updateLogTable(sttText, translatedText, mtTime, 0);
   } else {
-    console.log("NNN");
+    // console.log("NNN");
     // สำหรับการแปลข้อความจากการส่งข้อความปกติ
     const translatedText = translated.split(": ")[1];
     document.getElementById("bOutput").value = translatedText; // ข้อความแปล
@@ -401,7 +401,41 @@ function updateLogTable(originalText, translatedText, stt, mtTime) {
 
   // Check if there are rows in the table, if yes, hide the "No logs yet" message
   const noLogsMessage = document.getElementById("noLogsMessage"); // Get the "No logs yet" message by its ID
-  if (logBody.rows.length > 1) { // Make sure there are rows besides the "No logs yet" message
+  if (logBody.rows.length > 1) {
+    // Make sure there are rows besides the "No logs yet" message
     noLogsMessage.style.display = "none"; // Hide the "No logs yet" message
   }
 }
+
+document.getElementById("applySettings").addEventListener("click", function () {
+  const chunkSize = document.getElementById("chunk").value;
+  const vadSensitivity = document.getElementById("vad").value;
+
+  // Display the settings in the console (for testing)
+  console.log(
+    `Chunk Size: ${chunkSize}, VAD Sensitivity: ${vadSensitivity}`
+  );
+
+  // Send settings to backend using AJAX (POST request)
+  fetch("http://localhost:8000/set_audio_settings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      chunkSize: chunkSize,
+      vadSensitivity: vadSensitivity,
+    }),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      // Show success status in console
+      console.log("Settings applied:", data);
+      alert("Settings applied successfully!");
+    })
+    .catch((error) => {
+      // Handle errors
+      console.error("Error:", error);
+      alert("Error applying settings.");
+    });
+});

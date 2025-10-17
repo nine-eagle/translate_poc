@@ -52,37 +52,47 @@
 
         <div style="margin-top:16px">
           <div class="title" style="margin-bottom:8px">Settings</div>
-          <div class="grid3">
+          <div class="grid2">
+            <!-- Chunk Size -->
             <div>
               <div class="muted" style="margin:6px 0">Chunk size</div>
               <select id="chunk">
-                <option>20 ms</option>
-                <option>40 ms</option>
-                <option>80 ms</option>
+                <option value="20ms">20 ms</option>
+                <option value="40ms">40 ms</option>
+                <option value="80ms">80 ms</option>
               </select>
             </div>
+
+            <!-- VAD Sensitivity -->
             <div>
               <div class="muted" style="margin:6px 0">VAD sensitivity</div>
               <select id="vad">
-                <option>Low</option>
-                <option>Medium</option>
-                <option>High</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
               </select>
             </div>
-            <div>
+
+            <!-- Target Voice -->
+            <!-- <div>
               <div class="muted" style="margin:6px 0">Target voice</div>
               <select id="voice">
-                <option>Standard</option>
-                <option>Female</option>
-                <option>Male</option>
+                <option value="Standard">Standard</option>
+                <option value="Female">Female</option>
+                <option value="Male">Male</option>
               </select>
-            </div>
+            </div> -->
           </div>
-          <label class="right" style="margin-top:8px; justify-content:flex-start;">
+
+          <!-- Auto-translate setting -->
+          <!-- <label class="right" style="margin-top:8px; justify-content:flex-start;">
             <input id="autoTranslate" type="checkbox" checked style="margin-right:8px">
             Auto-translate (idle 0.5s)
             <span class="hint" style="margin-left:8px">Hotkey: Ctrl+Enter</span>
-          </label>
+          </label> -->
+
+          <!-- Apply Settings Button -->
+          <button id="applySettings" style="margin-top: 16px;">Apply Settings</button>
         </div>
       </div>
 
@@ -161,7 +171,8 @@
             </thead>
             <tbody id="logBody">
               <tr>
-                <td colspan="7" class="px-3 py-6 text-center text-slate-500" id="noLogsMessage">No logs yet. Translate some text to
+                <td colspan="7" class="px-3 py-6 text-center text-slate-500" id="noLogsMessage">No logs yet. Translate
+                  some text to
                   populate.
                 </td>
               </tr>

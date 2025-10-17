@@ -5,6 +5,7 @@ import speech_recognition as sr
 import base64
 import io
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 # Loading the translation model
 MODEL_NAME = "facebook/nllb-200-distilled-600M"
@@ -31,6 +32,15 @@ LANG_CODES = {
 lang_token_ids = {code: tokenizer.convert_tokens_to_ids(code) for code in LANG_CODES.values()}
 
 app = FastAPI()
+
+# เพิ่ม middleware สำหรับ CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # กำหนดโดเมนที่อนุญาต
+    allow_credentials=True,
+    allow_methods=["*"],  # อนุญาตทุก HTTP method (GET, POST, PUT, DELETE, ฯลฯ)
+    allow_headers=["*"],  # อนุญาตให้ใช้ทุก headers
+)
 
 def translate(text: str, src: str, tgt: str) -> str:
     try:
@@ -64,7 +74,7 @@ def translate(text: str, src: str, tgt: str) -> str:
     
     except Exception as e:
         return f"[ERROR] {str(e)}"
-
+    
 # ฟังก์ชันแปลง base64 เป็นไฟล์เสียงแล้วแปลงเป็นข้อความ (Speech-to-Text)
 def audio_to_text(audio_base64: str, language_code: str) -> str:
     try:
@@ -83,21 +93,44 @@ def audio_to_text(audio_base64: str, language_code: str) -> str:
 
     except Exception as e:
         return f"[ERROR] {str(e)}"
-
+    
 @app.post("/set_audio_settings")
 async def set_audio_settings(request: Request):
-    body = await request.json()
-    vad_sensitivity = body.get('vadSensitivity')
+    body = await request.json()  # รับข้อมูล JSON
     chunk_size = body.get('chunkSize')
+    vad_sensitivity = body.get('vadSensitivity')
 
-    # พิมพ์ค่าการตั้งค่าที่ได้รับจาก Frontend เพื่อทดสอบ
-    print(f"Received VAD Sensitivity: {vad_sensitivity}, Chunk Size: {chunk_size}")
+    # พิมพ์ค่าการตั้งค่าสำหรับการตรวจสอบ
+    print(f"Chunk Size: {chunk_size}, VAD Sensitivity: {vad_sensitivity}")
 
-    # ปรับการตั้งค่าการจับเสียงตามที่ได้รับ
-    set_audio_settings(vad_sensitivity, chunk_size)
+    # ปรับค่าการตั้งค่าการจับเสียง
+    apply_audio_settings(chunk_size, vad_sensitivity)
 
     return {"message": "Audio settings updated successfully"}
 
+
+# ฟังก์ชันสำหรับตั้งค่าการจับเสียง (VAD Sensitivity) และขนาดช่วงเสียง (Chunk Size)
+def apply_audio_settings(vad_sensitivity: str, chunk_size: str):
+    recognizer = sr.Recognizer()  # สร้างตัวแปร recognizer ของ SpeechRecognition
+
+    # ตั้งค่าความไวในการจับเสียง (VAD Sensitivity)
+    if vad_sensitivity == "Low":
+        recognizer.energy_threshold = 4000  # ความไวต่ำ
+    elif vad_sensitivity == "Medium":
+        recognizer.energy_threshold = 2000  # ความไวปานกลาง
+    else:
+        recognizer.energy_threshold = 1000  # ความไวสูง
+    
+    # ตั้งค่าขนาดช่วงเสียง (Chunk Size)
+    if chunk_size == "20ms":
+        recognizer.pause_threshold = 0.02  # ขนาดช่วงเสียง 20ms
+    elif chunk_size == "50ms":
+        recognizer.pause_threshold = 0.05  # ขนาดช่วงเสียง 50ms
+    elif chunk_size == "100ms":
+        recognizer.pause_threshold = 0.1  # ขนาดช่วงเสียง 100ms
+
+    print(f"Recognizer configured: VAD Sensitivity: {vad_sensitivity}, Chunk Size: {chunk_size}")
+    
 # WebSocket endpoint to handle real-time communication
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
