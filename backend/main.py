@@ -1,9 +1,10 @@
+import time
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 import speech_recognition as sr
 import base64
 import io
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 
 # Loading the translation model
 MODEL_NAME = "facebook/nllb-200-distilled-600M"
@@ -33,6 +34,8 @@ app = FastAPI()
 
 def translate(text: str, src: str, tgt: str) -> str:
     try:
+        start_time = time.time()  # Record start time
+        
         src_code = LANG_CODES.get(src)
         tgt_code = LANG_CODES.get(tgt)
         
@@ -52,8 +55,13 @@ def translate(text: str, src: str, tgt: str) -> str:
             )
 
         translation = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
-        return translation.strip()
-
+        
+        end_time = time.time()  # Record end time
+        translation_time = end_time - start_time  # Calculate translation time
+        
+        # return f"{translation.strip()} (Time taken: {translation_time:.2f} seconds)"
+        return f"{translation.strip()}"
+    
     except Exception as e:
         return f"[ERROR] {str(e)}"
 
@@ -76,6 +84,20 @@ def audio_to_text(audio_base64: str, language_code: str) -> str:
     except Exception as e:
         return f"[ERROR] {str(e)}"
 
+@app.post("/set_audio_settings")
+async def set_audio_settings(request: Request):
+    body = await request.json()
+    vad_sensitivity = body.get('vadSensitivity')
+    chunk_size = body.get('chunkSize')
+
+    # พิมพ์ค่าการตั้งค่าที่ได้รับจาก Frontend เพื่อทดสอบ
+    print(f"Received VAD Sensitivity: {vad_sensitivity}, Chunk Size: {chunk_size}")
+
+    # ปรับการตั้งค่าการจับเสียงตามที่ได้รับ
+    set_audio_settings(vad_sensitivity, chunk_size)
+
+    return {"message": "Audio settings updated successfully"}
+
 # WebSocket endpoint to handle real-time communication
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -95,18 +117,28 @@ async def websocket_endpoint(websocket: WebSocket):
                 tgt_lang_code = LANG_CODES.get(tgt_lang, "en")
 
                 # แปลงไฟล์เสียงเป็นข้อความ
+                audio_start_time = time.time()  # Start time for audio-to-text
                 text = audio_to_text(audio_base64, src_lang_code)
+                audio_end_time = time.time()  # End time for audio-to-text
+                audio_processing_time = audio_end_time - audio_start_time  # Time taken for audio-to-text
 
                 # แปลข้อความ
+                translation_start_time = time.time()  # Start time for translation
                 translated_text = translate(text, src_lang, tgt_lang)
+                translation_end_time = time.time()  # End time for translation
+                translation_processing_time = translation_end_time - translation_start_time  # Time taken for translation
 
                 # ส่งข้อความที่แปลงกลับไปยัง Frontend
-                await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nAction: audio")
+                await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nAudio-to-text processing time: {audio_processing_time:.2f} seconds\nMT: {translation_processing_time:.2f} seconds\nAction: audio")
             else:
                 # ข้อมูลข้อความที่ปกติ
                 text, src_lang, tgt_lang, action = parts
+                translation_start_time = time.time()  # Start time for translation
                 translated_text = translate(text, src_lang, tgt_lang)
-                await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nAction: {action}")
+                translation_end_time = time.time()  # End time for translation
+                translation_processing_time = translation_end_time - translation_start_time  # Time taken for translation
+
+                await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nMT: {translation_processing_time:.2f} seconds\nAction: {action}")
 
     except WebSocketDisconnect:
         print("Client disconnected")

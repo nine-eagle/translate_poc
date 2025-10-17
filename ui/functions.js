@@ -116,8 +116,7 @@ function speakText(elementId, languageSelect) {
 
 let recognition;
 let isRecording = false;
-let interimTranscript = "";
-let finalTranscript = "";
+let stt = 0;
 let socket = new WebSocket("ws://localhost:8000/ws"); // WebSocket ที่เชื่อมต่อกับ Backend
 
 // เมื่อเชื่อมต่อ WebSocket สำเร็จ
@@ -127,11 +126,19 @@ socket.onopen = function () {
 
 // เมื่อได้รับข้อความจาก WebSocket (ข้อความแปล)
 socket.onmessage = function (event) {
-  const [original, translated, action] = event.data.split("\n");
+  // console.log(event.data)
+  const [original, translated, translationTime, action] =
+    event.data.split("\n");
+
   el("bState").classList.remove("hidden");
-  el("bState").textContent = "Waitting";
+  el("bState").textContent = "Waiting";
+
   // ดึง action จากข้อความ
   const trimmedAction = action.split(": ")[1];
+
+  // แยกข้อมูล STT และ MT เวลาจากข้อความ
+  const mtTime = parseFloat(translationTime.split(": ")[1]); // MT processing time
+  // const total = parseFloat(totalTime.split(": ")[1]); // Total time
 
   if (trimmedAction == "change_srcLang") {
     // หาก action เป็น "change_srcLang", แสดงข้อความต้นทางใน input
@@ -146,11 +153,22 @@ socket.onmessage = function (event) {
     // แสดงข้อความแปลใน bOutput
     const translatedText = translated.split(": ")[1];
     document.getElementById("bOutput").value = translatedText; // ข้อความแปลจากเสียง (STT)
+
+    // แสดงเวลา STT และ MT ในตาราง
+    updateLogTable(sttText, translatedText, mtTime, 0);
   } else {
+    console.log("NNN");
     // สำหรับการแปลข้อความจากการส่งข้อความปกติ
     const translatedText = translated.split(": ")[1];
     document.getElementById("bOutput").value = translatedText; // ข้อความแปล
+
+    const sttText = original.split(": ")[1];
+    document.getElementById("aInput").value = sttText;
+
+    // แสดงเวลา MT ในตาราง
+    updateLogTable(original.split(": ")[1], translatedText, mtTime, 0); // No STT time here
   }
+
   el("bState").textContent = "Finish";
 };
 
@@ -255,69 +273,73 @@ document.getElementById("btnStop").addEventListener("click", function () {
   document.getElementById("btnRec").style.display = "inline-block";
   document.getElementById("btnPause").style.display = "none";
   document.getElementById("btnResume").style.display = "none";
+
+  clearTimeout(translationTimeout); // ยกเลิกการตั้งเวลาที่ค้างอยู่
+});
+
+// เมื่อคลิกปุ่ม Clear
+document.getElementById("btnClear").addEventListener("click", function () {
+  recognition.stop();
+  finalTranscript = ""; // รีเซ็ต finalTranscript
+  interimTranscript = ""; // รีเซ็ต interimTranscript
+  lastTranscript = ""; // รีเซ็ต lastTranscript
+  clearTimeout(translationTimeout); // ยกเลิกการตั้งเวลาที่ค้างอยู่
+  document.getElementById("aInput").value = ""; // เคลียร์ค่าใน aInput
+  document.getElementById("bOutput").value = ""; // เคลียร์ค่าใน aInput
 });
 
 // ฟังก์ชันเริ่มการบันทึกเสียง
+let translationTimeout; // ตัวแปรเพื่อเก็บ timeout ID
+let lastTranscript = ""; // ตัวแปรเก็บข้อความล่าสุด
+let finalTranscript = "";
+let interimTranscript = "";
+
+// ฟังก์ชันเริ่มการบันทึกเสียง
 function startRecording() {
-  // finalTranscript = "";  // รีเซ็ต final transcript
+  const startTime = Date.now(); // Time when the recording starts
   recognition = new (window.SpeechRecognition ||
     window.webkitSpeechRecognition)();
-  recognition.lang = document.getElementById("srcLang").value; // กำหนดภาษาตามที่ผู้ใช้เลือก
+  recognition.lang = document.getElementById("srcLang").value;
   recognition.continuous = true;
   recognition.interimResults = true;
 
   recognition.onresult = function (event) {
-    interimTranscript = "";
+    interimTranscript = ""; // Reset interim transcript
+
     for (let i = event.resultIndex; i < event.results.length; i++) {
       if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
+        finalTranscript += event.results[i][0].transcript; // Final transcript
       } else {
-        interimTranscript += event.results[i][0].transcript;
+        interimTranscript += event.results[i][0].transcript; // Interim result
       }
     }
 
-    // ส่งข้อความที่จับจากเสียงไปแปล
-    if (finalTranscript.length > 0) {
-      document.getElementById("aInput").value = finalTranscript;
-      sendTextForTranslation(finalTranscript);
-    } else {
-      document.getElementById("aInput").value = interimTranscript;
+    // เพิ่มข้อความใหม่ไปยัง aInput โดยไม่รีเซ็ตข้อความเก่า
+    document.getElementById("aInput").value =
+      finalTranscript + interimTranscript;
+
+    // ตรวจสอบว่า finalTranscript มีข้อความใหม่และแตกต่างจาก lastTranscript
+    if (finalTranscript.length > 0 && finalTranscript !== lastTranscript) {
+      lastTranscript = finalTranscript;
+
+      // กำหนดเวลาในการแปล (เช่น รอ 1 วินาทีหลังจากมีการพูดเสร็จ)
+      clearTimeout(translationTimeout); // ยกเลิกการแปลก่อนหน้านี้หากยังมีการพูดอยู่
+      translationTimeout = setTimeout(function () {
+        // ส่งข้อความไปแปลเมื่อไม่ได้รับข้อความใหม่จากการพูด
+        sendTextForTranslation(finalTranscript);
+
+        // คำนวณเวลาในการแปลงเสียงเป็นข้อความ
+        const endTime = Date.now();
+        const elapsedTime = (endTime - startTime) / 1000; // Time in seconds
+        console.log(
+          `Time taken for speech-to-text: ${elapsedTime.toFixed(2)} seconds`
+        );
+      }, 1000); // รอ 1 วินาทีหลังจากการพูดเสร็จ
     }
   };
 
-  recognition.start(); // เริ่มบันทึกเสียง
+  recognition.start(); // เริ่มการบันทึกเสียง
 }
-
-// ฟังก์ชันเริ่มบันทึกเสียงและแปลงเป็นข้อความ (STT)
-// function startSpeechRecognition() {
-//   let finalTranscript = "";
-//   recognition = new (window.SpeechRecognition ||
-//     window.webkitSpeechRecognition)();
-//   recognition.lang = document.getElementById("srcLang").value; // เลือกภาษาต้นทางจาก dropdown
-//   recognition.continuous = true;
-//   recognition.interimResults = true;
-
-//   recognition.onresult = function (event) {
-//     let interimTranscript = "";
-//     for (let i = event.resultIndex; i < event.results.length; i++) {
-//       if (event.results[i].isFinal) {
-//         finalTranscript += event.results[i][0].transcript;
-//       } else {
-//         interimTranscript += event.results[i][0].transcript;
-//       }
-//     }
-
-//     // ส่งข้อความที่จับจากเสียงไปแปล
-//     if (finalTranscript.length > 0) {
-//       sendTextForTranslation(finalTranscript);
-//     }
-
-//     // แสดงข้อความที่จับได้จากเสียง
-//     el("aInput").value = interimTranscript || finalTranscript;
-//   };
-
-//   recognition.start();
-// }
 
 document
   .getElementById("btnUploadAudio")
@@ -350,3 +372,36 @@ document
     // อ่านไฟล์เสียงเป็น base64
     reader.readAsDataURL(audioFile);
   });
+
+// Function to update the log table with the processing times
+function updateLogTable(originalText, translatedText, stt, mtTime) {
+  // Get the current time
+  const currentTime = new Date().toLocaleTimeString();
+
+  // Get the log table body
+  const logBody = document.getElementById("logBody");
+
+  // Calculate total time
+  const totalTime = Number(stt) + Number(mtTime);
+
+  // Create a new row and format it with the data
+  const newRow = document.createElement("tr");
+  newRow.innerHTML = `
+    <td class="px-3 py-2">${currentTime}</td>
+    <td class="px-3 py-2">${originalText} → ${translatedText}</td>
+    <td class="px-3 py-2">${originalText}</td>
+    <td class="text-right px-3 py-2">${stt.toFixed(2)}</td>
+    <td class="text-right px-3 py-2">${mtTime.toFixed(2)}</td>
+    <td class="text-right px-3 py-2">N/A</td> <!-- TTS time can be added here if applicable -->
+    <td class="text-right px-3 py-2">${totalTime.toFixed(2)}</td>
+  `;
+
+  // Insert the new row at the top of the table body (before the first child)
+  logBody.insertBefore(newRow, logBody.firstChild);
+
+  // Check if there are rows in the table, if yes, hide the "No logs yet" message
+  const noLogsMessage = document.getElementById("noLogsMessage"); // Get the "No logs yet" message by its ID
+  if (logBody.rows.length > 1) { // Make sure there are rows besides the "No logs yet" message
+    noLogsMessage.style.display = "none"; // Hide the "No logs yet" message
+  }
+}
