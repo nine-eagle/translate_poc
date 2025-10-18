@@ -36,15 +36,16 @@ app = FastAPI()
 # เพิ่ม middleware สำหรับ CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # กำหนดโดเมนที่อนุญาต
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # อนุญาตทุก HTTP method (GET, POST, PUT, DELETE, ฯลฯ)
-    allow_headers=["*"],  # อนุญาตให้ใช้ทุก headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+# ฟังก์ชันแปล
 def translate(text: str, src: str, tgt: str) -> str:
     try:
-        start_time = time.time()  # Record start time
+        start_time = time.time()  # เริ่มจับเวลา
         
         src_code = LANG_CODES.get(src)
         tgt_code = LANG_CODES.get(tgt)
@@ -66,15 +67,15 @@ def translate(text: str, src: str, tgt: str) -> str:
 
         translation = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
         
-        end_time = time.time()  # Record end time
-        translation_time = end_time - start_time  # Calculate translation time
+        end_time = time.time()  # จบการจับเวลา
+        translation_time = end_time - start_time  # คำนวณเวลาที่ใช้
         
-        # return f"{translation.strip()} (Time taken: {translation_time:.2f} seconds)"
-        return f"{translation.strip()}"
-    
+        return f"{translation.strip()}, {translation_time:.2f}"
+
     except Exception as e:
-        return f"[ERROR] {str(e)}"
-    
+        return f"[ERROR] {str(e)}, 0"  # Return error message with 0 time if an exception occurs
+
+
 # ฟังก์ชันแปลง base64 เป็นไฟล์เสียงแล้วแปลงเป็นข้อความ (Speech-to-Text)
 def audio_to_text(audio_base64: str, language_code: str) -> str:
     try:
@@ -131,7 +132,7 @@ def apply_audio_settings(vad_sensitivity: str, chunk_size: str):
 
     print(f"Recognizer configured: VAD Sensitivity: {vad_sensitivity}, Chunk Size: {chunk_size}")
     
-# WebSocket endpoint to handle real-time communication
+# WebSocket endpoint ที่ทำงานร่วมกับเวลาที่ใช้ในการแปล
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -141,37 +142,35 @@ async def websocket_endpoint(websocket: WebSocket):
             parts = data.split('|')
 
             if parts[-1] == "audio":
-                audio_base64 = parts[0]  # ข้อมูลเสียงในรูปแบบ base64
+                audio_base64 = parts[0]
                 src_lang = parts[1]
                 tgt_lang = parts[2]
 
-                # ตรวจสอบว่า src_lang_code เป็น None หรือไม่
                 src_lang_code = LANG_CODES.get(src_lang, "en")
                 tgt_lang_code = LANG_CODES.get(tgt_lang, "en")
 
                 # แปลงไฟล์เสียงเป็นข้อความ
-                audio_start_time = time.time()  # Start time for audio-to-text
+                audio_start_time = time.time()
                 text = audio_to_text(audio_base64, src_lang_code)
-                audio_end_time = time.time()  # End time for audio-to-text
-                audio_processing_time = audio_end_time - audio_start_time  # Time taken for audio-to-text
+                audio_end_time = time.time()
+                audio_processing_time = audio_end_time - audio_start_time  # เวลาที่ใช้ในขั้นตอนการแปลงเสียงเป็นข้อความ
 
                 # แปลข้อความ
-                translation_start_time = time.time()  # Start time for translation
+                translation_start_time = time.time()
                 translated_text = translate(text, src_lang, tgt_lang)
-                translation_end_time = time.time()  # End time for translation
-                translation_processing_time = translation_end_time - translation_start_time  # Time taken for translation
-
-                # ส่งข้อความที่แปลงกลับไปยัง Frontend
-                await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nAudio-to-text processing time: {audio_processing_time:.2f} seconds\nMT: {translation_processing_time:.2f} seconds\nAction: audio")
+                translation_end_time = time.time()
+                
+                parts = translated_text.split(',')
+                # ส่งข้อมูลที่แปลงไปยัง Frontend
+                await websocket.send_text(f"Original: {text}\nTranslated: {parts[0]}\nAudio-to-text processing time: {audio_processing_time:.2f} seconds\nAction: audio")
             else:
-                # ข้อมูลข้อความที่ปกติ
                 text, src_lang, tgt_lang, action = parts
-                translation_start_time = time.time()  # Start time for translation
+                translation_start_time = time.time()
                 translated_text = translate(text, src_lang, tgt_lang)
-                translation_end_time = time.time()  # End time for translation
-                translation_processing_time = translation_end_time - translation_start_time  # Time taken for translation
-
-                await websocket.send_text(f"Original: {text}\nTranslated: {translated_text}\nMT: {translation_processing_time:.2f} seconds\nAction: {action}")
+                translation_end_time = time.time()
+                
+                parts = translated_text.split(',')
+                await websocket.send_text(f"Original: {text}\nTranslated: {parts[0]}\nMT: {parts[1]}\nAction: {action}")
 
     except WebSocketDisconnect:
         print("Client disconnected")

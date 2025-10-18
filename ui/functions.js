@@ -155,7 +155,7 @@ socket.onmessage = function (event) {
     document.getElementById("bOutput").value = translatedText; // ข้อความแปลจากเสียง (STT)
 
     // แสดงเวลา STT และ MT ในตาราง
-    updateLogTable(sttText, translatedText, mtTime, 0);
+    updateLogTable(sttText, translatedText, mtTime);
   } else {
     // console.log("NNN");
     // สำหรับการแปลข้อความจากการส่งข้อความปกติ
@@ -166,7 +166,7 @@ socket.onmessage = function (event) {
     document.getElementById("aInput").value = sttText;
 
     // แสดงเวลา MT ในตาราง
-    updateLogTable(original.split(": ")[1], translatedText, mtTime, 0); // No STT time here
+    updateLogTable(original.split(": ")[1], translatedText, mtTime); // No STT time here
   }
 
   el("bState").textContent = "Finish";
@@ -331,9 +331,11 @@ function startRecording() {
         // คำนวณเวลาในการแปลงเสียงเป็นข้อความ
         const endTime = Date.now();
         const elapsedTime = (endTime - startTime) / 1000; // Time in seconds
-        console.log(
-          `Time taken for speech-to-text: ${elapsedTime.toFixed(2)} seconds`
-        );
+        stt = elapsedTime
+        // console.log(
+        //   `Time taken for speech-to-text: ${elapsedTime.toFixed(2)} seconds`
+        // );
+        // console.log(stt)
       }, 1000); // รอ 1 วินาทีหลังจากการพูดเสร็จ
     }
   };
@@ -374,7 +376,8 @@ document
   });
 
 // Function to update the log table with the processing times
-function updateLogTable(originalText, translatedText, stt, mtTime) {
+function updateLogTable(originalText, translatedText, mtTime) {
+  // console.log(mtTime)
   // Get the current time
   const currentTime = new Date().toLocaleTimeString();
 
@@ -412,9 +415,9 @@ document.getElementById("applySettings").addEventListener("click", function () {
   const vadSensitivity = document.getElementById("vad").value;
 
   // Display the settings in the console (for testing)
-  console.log(
-    `Chunk Size: ${chunkSize}, VAD Sensitivity: ${vadSensitivity}`
-  );
+  // console.log(
+  //   `Chunk Size: ${chunkSize}, VAD Sensitivity: ${vadSensitivity}`
+  // );
 
   // Send settings to backend using AJAX (POST request)
   fetch("http://localhost:8000/set_audio_settings", {
