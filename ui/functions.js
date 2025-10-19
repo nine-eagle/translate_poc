@@ -117,7 +117,10 @@ function speakText(elementId, languageSelect) {
 let recognition;
 let isRecording = false;
 let stt = 0;
-let socket = new WebSocket("ws://localhost:8000/ws"); // WebSocket ที่เชื่อมต่อกับ Backend
+// Use relative URL for WebSocket connection in Docker environment
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsHost = window.location.host;
+let socket = new WebSocket(`${wsProtocol}//${wsHost}/ws`); // WebSocket ที่เชื่อมต่อกับ Backend
 
 // เมื่อเชื่อมต่อ WebSocket สำเร็จ
 socket.onopen = function () {
@@ -420,7 +423,7 @@ document.getElementById("applySettings").addEventListener("click", function () {
   // );
 
   // Send settings to backend using AJAX (POST request)
-  fetch("http://localhost:8000/set_audio_settings", {
+  fetch("/set_audio_settings", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
