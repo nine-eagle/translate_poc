@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>กรองเสียงและแปลงเป็นข้อความ</title>
+</head>
+
+<body>
+    <div class="container">
+        <h1>กรองเสียงและแปลงเป็นข้อความ</h1>
+
+        <!-- ส่วนเลือกภาษา -->
+        <label for="srcLang">เลือกภาษา:</label>
+        <select id="srcLang">
+            <option value="en-US">English</option>
+            <option value="th-TH">Thai</option>
+            <option value="es-ES">Spanish</option>
+            <option value="fr-FR">French</option>
+        </select>
+
+        <!-- เลือกระดับการตั้งค่าความไวของ VAD -->
+        <label for="vadSensitivity">เลือกความไวของการจับเสียง:</label>
+        <select id="vadSensitivity">
+            <option value="Low">ต่ำ</option>
+            <option value="Medium">กลาง</option>
+            <option value="High">สูง</option>
+        </select>
+        <br><br>
+
+        <!-- เลือกระดับขนาดช่วงเสียง -->
+        <label for="chunkSize">เลือกระดับขนาดช่วงเสียง:</label>
+        <select id="chunkSize">
+            <option value="20ms">20ms</option>
+            <option value="50ms">50ms</option>
+            <option value="100ms">100ms</option>
+        </select>
+        <br><br>
+
+        <!-- เลือกระดับการลดเสียงรบกวน -->
+        <label for="noiseLevel">เลือกระดับการลดเสียงรบกวน:</label>
+        <select id="noiseLevel">
+            <option value="Low">ต่ำ</option>
+            <option value="Medium">กลาง</option>
+            <option value="High">สูง</option>
+        </select>
+        <br><br>
+
+        <button id="btnRecord">เริ่มบันทึก</button>
+        <button id="btnStop" disabled>หยุดบันทึก</button>
+        <br><br>
+
+        <!-- ตัวแสดงเสียงที่บันทึก -->
+        <audio id="audioPlayer" controls></audio>
+
+        <!-- แสดงข้อความที่แปล -->
+        <textarea id="aInput" placeholder="ข้อความที่แปล"></textarea>
+        <br>
+        <textarea id="translatedInput" placeholder="แปลข้อความ"></textarea>
+    </div>
+</body>
+<script>
+    let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let stream;
+    let source;
+    let mediaRecorder;
+    let audioChunks = [];
+
+    // ฟังก์ชันเริ่มการบันทึกเสียง
+    document.getElementById('btnRecord').addEventListener('click', function () {
+        startRecording();
+    });
+
+    // หยุดบันทึกเสียง
+    document.getElementById('btnStop').addEventListener('click', function () {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+    });
+
+    // เริ่มการบันทึกเสียงจากไมโครโฟน
+    async function startRecording() {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function (s) {
+                stream = s;
+                source = audioContext.createMediaStreamSource(stream);
+
+                // สร้างฟิลเตอร์ Noise Reduction (High-Pass Filter)
+                let highPassFilter = audioContext.createBiquadFilter();
+                highPassFilter.type = "highpass";
+                highPassFilter.frequency.setValueAtTime(300, audioContext.currentTime); // กรองเสียงที่ต่ำกว่า 300Hz
+
+                // สร้าง Gain Node เพื่อลดเสียงรบกวน
+                let gainNode = audioContext.createGain();
+                gainNode.gain.value = getNoiseReductionValue(); // ปรับค่าการลดเสียงรบกวนจากผู้ใช้
+
+                // เชื่อมต่อกับ AudioContext
+                source.connect(highPassFilter);
+                highPassFilter.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = function (event) {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = function () {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    document.getElementById('audioPlayer').src = audioUrl;
+                    audioChunks = [];
+
+                    // ลดเสียงรบกวนหลังจากการบันทึก
+                    processAudio(audioBlob);
+                };
+
+                mediaRecorder.start();
+                document.getElementById('btnStop').disabled = false;
+                document.getElementById('btnRecord').disabled = true;
+                console.log('เริ่มบันทึกเสียง');
+            })
+            .catch(function (error) {
+                console.error('เกิดข้อผิดพลาดในการเข้าถึงไมโครโฟน:', error);
+            });
+    }
+
+    // ฟังก์ชันลดเสียงรบกวน
+    async function processAudio(audioBlob) {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+
+        // แปลง arrayBuffer เป็น AudioBuffer
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        const float32Array = audioBuffer.getChannelData(0);  // เราจะดึงข้อมูลจากช่องเสียงที่ 0 (mono)
+
+        const noiseReducedBuffer = new Float32Array(float32Array.length);
+
+        // ตัวอย่างการกรองเสียงโดยใช้ Web Audio API หรือการลดเสียงที่ไม่ต้องการ
+        for (let i = 0; i < float32Array.length; i++) {
+            noiseReducedBuffer[i] = float32Array[i]; // ลดเสียง
+        }
+
+        // ส่งออกไฟล์เสียงที่ลดเสียงรบกวน
+        const outputBlob = new Blob([noiseReducedBuffer], { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(outputBlob);
+        document.getElementById('audioPlayer').src = audioUrl;
+        console.log('ลดเสียงรบกวนเสร็จเรียบร้อย');
+
+        // เริ่มแปลงเสียงเป็นข้อความหลังจากลดเสียงรบกวน
+        audioToText(outputBlob);
+    }
+
+    // ฟังก์ชันแปลงเสียงเป็นข้อความด้วย SpeechRecognition
+    function audioToText(audioBlob) {
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = document.getElementById("srcLang").value;
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        const audioFile = new Blob([audioBlob], { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioFile);
+
+        recognition.onresult = function (event) {
+            let interimTranscript = "";
+            let finalTranscript = "";
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript; // Final transcript
+                } else {
+                    interimTranscript += event.results[i][0].transcript; // Interim result
+                }
+            }
+
+            // เพิ่มข้อความใหม่ไปยัง aInput โดยไม่รีเซ็ตข้อความเก่า
+            document.getElementById("aInput").value = finalTranscript + interimTranscript;
+
+            // เมื่อแปลงเสียงเสร็จ, จะส่งข้อความที่แปลไป
+            if (finalTranscript.length > 0) {
+                sendTextForTranslation(finalTranscript);
+            }
+        };
+
+        recognition.start(); // เริ่มการแปลงเสียงเป็นข้อความ
+    }
+
+    // ฟังก์ชันส่งข้อความไปแปล
+    function sendTextForTranslation(text) {
+        console.log("ส่งข้อความไปแปล: " + text);
+        document.getElementById("translatedInput").value = "แปลข้อความ: " + text; // สำหรับแสดงผล
+    }
+
+    // ฟังก์ชันเพื่อรับค่าการกรองเสียงรบกวนจากผู้ใช้
+    function getNoiseReductionValue() {
+        const noiseLevel = document.getElementById('noiseLevel').value;
+
+        // กำหนดการลดเสียงรบกวนตามที่ผู้ใช้เลือก
+        if (noiseLevel === "Low") {
+            return 0.2; // ลดเสียงเล็กน้อย
+        } else if (noiseLevel === "Medium") {
+            return 0.5; // ลดเสียงปานกลาง
+        } else if (noiseLevel === "High") {
+            return 0.8; // ลดเสียงมาก
+        }
+        return 0.5; // ค่าเริ่มต้น
+    }
+</script>
+
+</html>

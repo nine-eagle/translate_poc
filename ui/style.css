@@ -35,7 +35,6 @@
     }
 
     .wrap {
-        max-width: 1200px;
         margin: 24px auto;
         padding: 0 16px
     }
@@ -224,4 +223,19 @@
 
     .hidden {
         display: none;
+    }
+
+    .speaker-container {
+        display: flex;
+        gap: 20px;
+    }
+
+    .speaker-card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .gap-3 {
+        gap: 1rem;
     }

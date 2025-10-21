@@ -1,14 +1,25 @@
 // รายชื่อภาษาที่รองรับใน NLLB
 const languages = {
-  en: "English",
   th: "Thai",
-  fr: "French",
-  de: "German",
+  en: "English",
   es: "Spanish",
+  fr: "French",
   it: "Italian",
+  ru: "Russian",
+  de: "German",
+  zh: "Chinese",
   ja: "Japanese",
   ko: "Korean",
-  zh: "Chinese",
+  ar: "Arabic",
+  // zh_cantonese: "Chinese (Cantonese)", // จีนกวางตุ้ง (Cantonese)
+  // zh_hakka: "Chinese (Hakka)", // จีนฮากกา (Hakka)
+  // hi: "Hindi", // ภาษาอินเดีย (ฮินดี)
+  // bn: "Bengali", // ภาษาเบงกาลี
+  // ta: "Tamil", // ภาษาอินเดีย (ทมิฬ)
+  // ml: "Malayalam", // ภาษาอินเดีย (มาลายาลัม)
+  // my: "Burmese", // ภาษาเมียนมาร์
+  // ms: "Malay", // ภาษามลายู (สิงคโปร์)
+  // ta_sg: "Tamil (Singapore)", // ภาษาทมิฬ (สิงคโปร์)
 };
 
 /** ======= Devices scan ======= */
@@ -90,18 +101,14 @@ function populateLanguageSelect() {
 populateLanguageSelect();
 
 // ฟังก์ชันสำหรับการอ่านออกเสียงข้อความจาก input field ที่เลือก
-function speakText(elementId, languageSelect) {
-  const text = document.getElementById(elementId).value;
+function speakText(text, languageSelect) {
 
   if (text !== "") {
     // สร้าง speechSynthesisUtterance ใหม่
     const utterance = new SpeechSynthesisUtterance(text);
 
-    // รับค่าภาษาเสียงจาก select
-    const language = document.getElementById(languageSelect).value;
-
     // ตั้งค่าเสียงตามภาษาที่เลือก
-    utterance.lang = language;
+    utterance.lang = languageSelect;
     // ปรับแต่งเสียง: ลดความเร็ว, ปรับความสูง และระดับเสียง
     utterance.rate = 0.8; // ความเร็ว (0.1 - 10, ค่าเริ่มต้นคือ 1)
     utterance.pitch = 1.2; // ความสูง (0 - 2, ค่าเริ่มต้นคือ 1)
@@ -117,19 +124,25 @@ function speakText(elementId, languageSelect) {
 let recognition;
 let isRecording = false;
 let stt = 0;
-// Use relative URL for WebSocket connection in Docker environment
-const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const wsHost = window.location.host;
-let socket = new WebSocket(`${wsProtocol}//${wsHost}/ws`); // WebSocket ที่เชื่อมต่อกับ Backend
+let txt_speech = 0;
+let socket = new WebSocket("ws://localhost:8000/ws");
 
-// เมื่อเชื่อมต่อ WebSocket สำเร็จ
-socket.onopen = function () {
-  console.log("Connected to WebSocket server.");
+// แสดง spinner และปิดปุ่ม (disabled)
+const btnUploadAudio = el("btnUploadAudio");
+const spinner = el("spinner");
+const btnText = el("btnText");
+
+socket.onerror = function (event) {
+  console.error("WebSocket Error:", event);
+};
+
+socket.onclose = function (event) {
+  console.log("WebSocket connection closed:", event);
 };
 
 // เมื่อได้รับข้อความจาก WebSocket (ข้อความแปล)
 socket.onmessage = function (event) {
-  // console.log(event.data)
+  console.log(event.data);
   const [original, translated, translationTime, action] =
     event.data.split("\n");
 
@@ -159,6 +172,10 @@ socket.onmessage = function (event) {
 
     // แสดงเวลา STT และ MT ในตาราง
     updateLogTable(sttText, translatedText, mtTime);
+
+    btnUploadAudio.disabled = false;
+    spinner.style.display = "none";
+    btnText.style.display = "inline-block"; // กลับข้อความเดิม
   } else {
     // console.log("NNN");
     // สำหรับการแปลข้อความจากการส่งข้อความปกติ
@@ -175,7 +192,7 @@ socket.onmessage = function (event) {
   el("bState").textContent = "Finish";
 };
 
-// ส่งข้อความที่จับจากเสียงและภาษาไป WebSocket
+// ส่งข้อความที่จับจากเสียงและภาษาไป WebSocผket
 function sendTextForTranslation(text) {
   let srcLang = document.getElementById("srcLang").value; // รับค่าภาษาต้นทางจาก dropdown
   let tgtLang = document.getElementById("tgtLang").value; // รับค่าภาษาปลายทางจาก dropdown
@@ -200,7 +217,7 @@ document.getElementById("btnTranslate").addEventListener("click", function () {
   let tgtLang = document.getElementById("tgtLang").value; // ภาษาเป้าหมาย
 
   if (!text || !srcLang || !tgtLang) {
-    console.log(
+    alert(
       "[ERROR] Please ensure text, source language, and target language are selected."
     );
     return;
@@ -208,6 +225,33 @@ document.getElementById("btnTranslate").addEventListener("click", function () {
 
   // ส่งข้อความที่แก้ไขไปแปลตามภาษาต้นทางใหม่
   socket.send(`${text}|${srcLang}|${tgtLang}|normal`);
+});
+
+// เมื่อผู้ใช้เปลี่ยนภาษาเริ่มต้น
+document.getElementById("ttsA").addEventListener("click", function () {
+  let text = document.getElementById("aInput").value;
+  let srcLang = document.getElementById("srcLang").value;
+
+  if (!text || !srcLang) {
+    alert(
+      "[ERROR] Please ensure text, source language, and target language are selected."
+    );
+    return;
+  }
+  speakText(text, srcLang)
+});
+
+document.getElementById("ttsB").addEventListener("click", function () {
+  let text = document.getElementById("bOutput").value;
+  let tgtLang = document.getElementById("tgtLang").value;
+
+  if (!text || !tgtLang) {
+    alert(
+      "[ERROR] Please ensure text, source language, and target language are selected."
+    );
+    return;
+  }
+  speakText(text, tgtLang)
 });
 
 // เมื่อผู้ใช้เปลี่ยนภาษาเริ่มต้น
@@ -282,13 +326,15 @@ document.getElementById("btnStop").addEventListener("click", function () {
 
 // เมื่อคลิกปุ่ม Clear
 document.getElementById("btnClear").addEventListener("click", function () {
-  recognition.stop();
   finalTranscript = ""; // รีเซ็ต finalTranscript
   interimTranscript = ""; // รีเซ็ต interimTranscript
   lastTranscript = ""; // รีเซ็ต lastTranscript
   clearTimeout(translationTimeout); // ยกเลิกการตั้งเวลาที่ค้างอยู่
+  document.getElementById("audioFile").value = "";
   document.getElementById("aInput").value = ""; // เคลียร์ค่าใน aInput
+  document.getElementById("aState").value = "";
   document.getElementById("bOutput").value = ""; // เคลียร์ค่าใน aInput
+  document.getElementById("bState").value = "";
 });
 
 // ฟังก์ชันเริ่มการบันทึกเสียง
@@ -299,7 +345,6 @@ let interimTranscript = "";
 
 // ฟังก์ชันเริ่มการบันทึกเสียง
 function startRecording() {
-  const startTime = Date.now(); // Time when the recording starts
   recognition = new (window.SpeechRecognition ||
     window.webkitSpeechRecognition)();
   recognition.lang = document.getElementById("srcLang").value;
@@ -307,6 +352,7 @@ function startRecording() {
   recognition.interimResults = true;
 
   recognition.onresult = function (event) {
+    const startTime = Date.now(); // Time when the recording starts
     interimTranscript = ""; // Reset interim transcript
 
     for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -334,7 +380,7 @@ function startRecording() {
         // คำนวณเวลาในการแปลงเสียงเป็นข้อความ
         const endTime = Date.now();
         const elapsedTime = (endTime - startTime) / 1000; // Time in seconds
-        stt = elapsedTime
+        stt = elapsedTime;
         // console.log(
         //   `Time taken for speech-to-text: ${elapsedTime.toFixed(2)} seconds`
         // );
@@ -355,6 +401,10 @@ document
       return;
     }
 
+    btnUploadAudio.disabled = true; // ปิดปุ่มเพื่อไม่ให้คลิกซ้ำ
+    spinner.style.display = "inline-block"; // แสดง spinner
+    btnText.style.display = "none"; // ซ่อนข้อความ "Upload Audio" ขณะโหลด
+
     const reader = new FileReader();
     reader.onloadend = function () {
       // ตรวจสอบว่าเป็น base64 string ที่ถูกต้อง
@@ -367,6 +417,10 @@ document
         console.log(
           "[ERROR] Please ensure source and target languages are selected."
         );
+        // รีเซ็ตสถานะปุ่ม
+        btnUploadAudio.disabled = false;
+        spinner.style.display = "none";
+        btnText.style.display = "inline-block"; // กลับข้อความเดิม
         return;
       }
 
@@ -380,7 +434,7 @@ document
 
 // Function to update the log table with the processing times
 function updateLogTable(originalText, translatedText, mtTime) {
-  // console.log(mtTime)
+  // console.log(originalText, translatedText, mtTime);
   // Get the current time
   const currentTime = new Date().toLocaleTimeString();
 
@@ -394,11 +448,11 @@ function updateLogTable(originalText, translatedText, mtTime) {
   const newRow = document.createElement("tr");
   newRow.innerHTML = `
     <td class="px-3 py-2">${currentTime}</td>
-    <td class="px-3 py-2">${originalText} → ${translatedText}</td>
     <td class="px-3 py-2">${originalText}</td>
+    <td class="px-3 py-2">${translatedText}</td>
     <td class="text-right px-3 py-2">${stt.toFixed(2)}</td>
     <td class="text-right px-3 py-2">${mtTime.toFixed(2)}</td>
-    <td class="text-right px-3 py-2">N/A</td> <!-- TTS time can be added here if applicable -->
+    <td class="text-right px-3 py-2">${txt_speech.toFixed(2)}</td>
     <td class="text-right px-3 py-2">${totalTime.toFixed(2)}</td>
   `;
 
@@ -423,7 +477,7 @@ document.getElementById("applySettings").addEventListener("click", function () {
   // );
 
   // Send settings to backend using AJAX (POST request)
-  fetch("/set_audio_settings", {
+  fetch("http://45.154.27.238/set_audio_settings", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -445,3 +499,28 @@ document.getElementById("applySettings").addEventListener("click", function () {
       alert("Error applying settings.");
     });
 });
+
+function exportToJson() {
+  // ดึงข้อมูลจากตาราง
+  const tableData = [];
+  const rows = document.querySelectorAll("#logBody tr");
+
+  rows.forEach((row) => {
+    const rowData = {};
+    row.querySelectorAll("td").forEach((cell, index) => {
+      const header = document.querySelectorAll("thead th")[index].id;
+      rowData[header] = cell.textContent;
+    });
+    tableData.push(rowData);
+  });
+
+  // สร้าง JSON จากข้อมูล
+  const json = JSON.stringify(tableData, null, 2);
+
+  // สร้างไฟล์และดาวน์โหลด
+  const blob = new Blob([json], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "evidence_data.json";
+  link.click();
+}

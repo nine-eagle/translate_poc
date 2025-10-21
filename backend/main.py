@@ -27,6 +27,18 @@ LANG_CODES = {
     "ja": "jpn_Jpan",
     "ar": "arb_Arab",
 }
+LANG_CODES2 = {
+    "th": "th-TH",  # ภาษาไทย
+    "en": "en-US",  # ภาษาอังกฤษ
+    "es": "es-ES",  # ภาษาสเปน
+    "fr": "fr-FR",  # ภาษาฝรั่งเศส
+    "it": "it-IT",  # ภาษาอิตาลี
+    "ru": "ru-RU",  # ภาษารัสเซีย
+    "de": "de-DE",  # ภาษาเยอรมัน
+    "zh": "zh-CN",  # ภาษาจีน (จีนกลาง)
+    "ja": "ja-JP",  # ภาษาญี่ปุ่น
+    "ar": "ar-SA",  # ภาษาอาหรับ
+}
 
 # Mapping language codes to token IDs
 lang_token_ids = {code: tokenizer.convert_tokens_to_ids(code) for code in LANG_CODES.values()}
@@ -43,7 +55,7 @@ app.add_middleware(
 )
 
 # ฟังก์ชันแปล
-def translate(text: str, src: str, tgt: str) -> str:
+def translate(text: str, src: str, tgt: str) -> dict:
     try:
         start_time = time.time()  # เริ่มจับเวลา
         
@@ -51,7 +63,7 @@ def translate(text: str, src: str, tgt: str) -> str:
         tgt_code = LANG_CODES.get(tgt)
         
         if not src_code or not tgt_code:
-            return f"[ERROR] Unsupported language code: {src}->{tgt}"
+            return {"error": f"Unsupported language code: {src}->{tgt}"}
 
         tokenizer.src_lang = src_code
         inputs = tokenizer(text, return_tensors="pt")
@@ -70,28 +82,41 @@ def translate(text: str, src: str, tgt: str) -> str:
         end_time = time.time()  # จบการจับเวลา
         translation_time = end_time - start_time  # คำนวณเวลาที่ใช้
         
-        return f"{translation.strip()}, {translation_time:.2f}"
+        # ส่งผลลัพธ์ในรูปแบบ key:value
+        return {
+            "translated_text": translation.strip(),
+            "translation_time": f"{translation_time:.2f} seconds"
+        }
 
     except Exception as e:
-        return f"[ERROR] {str(e)}, 0"  # Return error message with 0 time if an exception occurs
-
+        return {"error": f"{str(e)}", "translation_time": "0"}
 
 # ฟังก์ชันแปลง base64 เป็นไฟล์เสียงแล้วแปลงเป็นข้อความ (Speech-to-Text)
 def audio_to_text(audio_base64: str, language_code: str) -> str:
     try:
         # แปลงข้อมูล base64 กลับเป็น bytes
         audio_data = base64.b64decode(audio_base64)
-
+        
+        # สร้าง recognizer object
         recognizer = sr.Recognizer()
+        
+        # สร้างไฟล์เสียงจากข้อมูล base64
         audio_file = io.BytesIO(audio_data)
-
+        
+        # ใช้ AudioFile ในการเปิดไฟล์เสียง
         with sr.AudioFile(audio_file) as source:
-            audio = recognizer.record(source)
+            audio = recognizer.record(source)  # บันทึกเสียงทั้งหมด
+        
+        # ใช้ Google Speech Recognition API หรือ Sphinx (offline) เพื่อแปลงเสียงเป็นข้อความ
+        # หากต้องการแปลงแบบออฟไลน์, ใช้ recognize_sphinx
+        text = recognizer.recognize_google(audio, language=language_code)  # ใช้ Google Speech Recognition API
 
-        # ใช้ pocketsphinx (offline STT)
-        text = recognizer.recognize_sphinx(audio)  # ใช้ pocketsphinx ที่ทำงานแบบออฟไลน์
         return text
-
+    
+    except sr.UnknownValueError:
+        return "ไม่สามารถเข้าใจเสียงได้"
+    except sr.RequestError as e:
+        return f"ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์: {e}"
     except Exception as e:
         return f"[ERROR] {str(e)}"
     
@@ -146,9 +171,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 src_lang = parts[1]
                 tgt_lang = parts[2]
 
-                src_lang_code = LANG_CODES.get(src_lang, "en")
-                tgt_lang_code = LANG_CODES.get(tgt_lang, "en")
-
+                src_lang_code = LANG_CODES2.get(src_lang, "en")
+                tgt_lang_code = LANG_CODES2.get(tgt_lang, "en")
+                print(f"{src_lang_code}")
                 # แปลงไฟล์เสียงเป็นข้อความ
                 audio_start_time = time.time()
                 text = audio_to_text(audio_base64, src_lang_code)
@@ -157,20 +182,22 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # แปลข้อความ
                 translation_start_time = time.time()
-                translated_text = translate(text, src_lang, tgt_lang)
+                translated_data = translate(text, src_lang, tgt_lang)
                 translation_end_time = time.time()
                 
-                parts = translated_text.split(',')
+                # parts = translated_text.split(',')
                 # ส่งข้อมูลที่แปลงไปยัง Frontend
-                await websocket.send_text(f"Original: {text}\nTranslated: {parts[0]}\nAudio-to-text processing time: {audio_processing_time:.2f} seconds\nAction: audio")
+                await websocket.send_text(f"Original: {text}\nTranslated: {translated_data['translated_text']}\nMT: {translated_data['translation_time']}\nAction: audio"
+)
             else:
                 text, src_lang, tgt_lang, action = parts
                 translation_start_time = time.time()
-                translated_text = translate(text, src_lang, tgt_lang)
+                translated_data = translate(text, src_lang, tgt_lang)
                 translation_end_time = time.time()
                 
-                parts = translated_text.split(',')
-                await websocket.send_text(f"Original: {text}\nTranslated: {parts[0]}\nMT: {parts[1]}\nAction: {action}")
+                # parts = translated_text.split(',')
+                
+                await websocket.send_text(f"Original: {text}\nTranslated: {translated_data['translated_text']}\nMT: {translated_data['translation_time']}\nAction: {action}")
 
     except WebSocketDisconnect:
         print("Client disconnected")
