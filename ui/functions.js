@@ -139,7 +139,7 @@ let recognition;
 let isRecording = false;
 let stt = 0;
 let txt_speech = 0;
-let socket = new WebSocket("ws://localhost:8000/ws");
+let socket = new WebSocket("ws://45.154.27.238:8000/ws");
 
 // แสดง spinner และปิดปุ่ม (disabled)
 const btnUploadAudio = el("btnUploadAudio");
