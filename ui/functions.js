@@ -1,14 +1,25 @@
 // รายชื่อภาษาที่รองรับใน NLLB
 const languages = {
-  en: "English",
   th: "Thai",
-  fr: "French",
-  de: "German",
+  en: "English",
   es: "Spanish",
+  fr: "French",
   it: "Italian",
+  ru: "Russian",
+  de: "German",
+  zh: "Chinese",
   ja: "Japanese",
   ko: "Korean",
-  zh: "Chinese",
+  ar: "Arabic",
+  // zh_cantonese: "Chinese (Cantonese)", // จีนกวางตุ้ง (Cantonese)
+  // zh_hakka: "Chinese (Hakka)", // จีนฮากกา (Hakka)
+  // hi: "Hindi", // ภาษาอินเดีย (ฮินดี)
+  // bn: "Bengali", // ภาษาเบงกาลี
+  // ta: "Tamil", // ภาษาอินเดีย (ทมิฬ)
+  // ml: "Malayalam", // ภาษาอินเดีย (มาลายาลัม)
+  // my: "Burmese", // ภาษาเมียนมาร์
+  // ms: "Malay", // ภาษามลายู (สิงคโปร์)
+  // ta_sg: "Tamil (Singapore)", // ภาษาทมิฬ (สิงคโปร์)
 };
 
 /** ======= Devices scan ======= */
@@ -90,18 +101,14 @@ function populateLanguageSelect() {
 populateLanguageSelect();
 
 // ฟังก์ชันสำหรับการอ่านออกเสียงข้อความจาก input field ที่เลือก
-function speakText(elementId, languageSelect) {
-  const text = document.getElementById(elementId).value;
+function speakText(text, languageSelect) {
 
   if (text !== "") {
     // สร้าง speechSynthesisUtterance ใหม่
     const utterance = new SpeechSynthesisUtterance(text);
 
-    // รับค่าภาษาเสียงจาก select
-    const language = document.getElementById(languageSelect).value;
-
     // ตั้งค่าเสียงตามภาษาที่เลือก
-    utterance.lang = language;
+    utterance.lang = languageSelect;
     // ปรับแต่งเสียง: ลดความเร็ว, ปรับความสูง และระดับเสียง
     utterance.rate = 0.8; // ความเร็ว (0.1 - 10, ค่าเริ่มต้นคือ 1)
     utterance.pitch = 1.2; // ความสูง (0 - 2, ค่าเริ่มต้นคือ 1)
@@ -117,7 +124,7 @@ function speakText(elementId, languageSelect) {
 let recognition;
 let isRecording = false;
 let stt = 0;
-let txt_speech = 0
+let txt_speech = 0;
 let socket = new WebSocket("ws://localhost:8000/ws");
 
 // แสดง spinner และปิดปุ่ม (disabled)
@@ -185,7 +192,7 @@ socket.onmessage = function (event) {
   el("bState").textContent = "Finish";
 };
 
-// ส่งข้อความที่จับจากเสียงและภาษาไป WebSocket
+// ส่งข้อความที่จับจากเสียงและภาษาไป WebSocผket
 function sendTextForTranslation(text) {
   let srcLang = document.getElementById("srcLang").value; // รับค่าภาษาต้นทางจาก dropdown
   let tgtLang = document.getElementById("tgtLang").value; // รับค่าภาษาปลายทางจาก dropdown
@@ -218,6 +225,33 @@ document.getElementById("btnTranslate").addEventListener("click", function () {
 
   // ส่งข้อความที่แก้ไขไปแปลตามภาษาต้นทางใหม่
   socket.send(`${text}|${srcLang}|${tgtLang}|normal`);
+});
+
+// เมื่อผู้ใช้เปลี่ยนภาษาเริ่มต้น
+document.getElementById("ttsA").addEventListener("click", function () {
+  let text = document.getElementById("aInput").value;
+  let srcLang = document.getElementById("srcLang").value;
+
+  if (!text || !srcLang) {
+    alert(
+      "[ERROR] Please ensure text, source language, and target language are selected."
+    );
+    return;
+  }
+  speakText(text, srcLang)
+});
+
+document.getElementById("ttsB").addEventListener("click", function () {
+  let text = document.getElementById("bOutput").value;
+  let tgtLang = document.getElementById("tgtLang").value;
+
+  if (!text || !tgtLang) {
+    alert(
+      "[ERROR] Please ensure text, source language, and target language are selected."
+    );
+    return;
+  }
+  speakText(text, tgtLang)
 });
 
 // เมื่อผู้ใช้เปลี่ยนภาษาเริ่มต้น
@@ -469,12 +503,12 @@ document.getElementById("applySettings").addEventListener("click", function () {
 function exportToJson() {
   // ดึงข้อมูลจากตาราง
   const tableData = [];
-  const rows = document.querySelectorAll('#logBody tr');
-  
-  rows.forEach(row => {
+  const rows = document.querySelectorAll("#logBody tr");
+
+  rows.forEach((row) => {
     const rowData = {};
-    row.querySelectorAll('td').forEach((cell, index) => {
-      const header = document.querySelectorAll('thead th')[index].id;
+    row.querySelectorAll("td").forEach((cell, index) => {
+      const header = document.querySelectorAll("thead th")[index].id;
       rowData[header] = cell.textContent;
     });
     tableData.push(rowData);
@@ -484,9 +518,9 @@ function exportToJson() {
   const json = JSON.stringify(tableData, null, 2);
 
   // สร้างไฟล์และดาวน์โหลด
-  const blob = new Blob([json], { type: 'application/json' });
-  const link = document.createElement('a');
+  const blob = new Blob([json], { type: "application/json" });
+  const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = 'evidence_data.json';
+  link.download = "evidence_data.json";
   link.click();
 }

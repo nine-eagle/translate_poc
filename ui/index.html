@@ -155,7 +155,7 @@
                   </h5>
                   <select class="form-select mb-3" id="srcLang"></select>
                   <h6>Upload file</h6>
-                  <input id="audioFile" type="file" class="form-control mb-2" accept=".wav" />
+                  <input id="audioFile" type="file" class="form-control mb-2" accept=".wav, .pcm" />
                   <!-- <button class="btn btn-outline-secondary w-100 mb-3" id="btnUploadAudio">Upload Audio</button> -->
                   <!-- HTML: ปุ่มและ spinner -->
                   <button id="btnUploadAudio" class="btn btn-outline-secondary w-100 mb-3">
@@ -168,7 +168,7 @@
                     placeholder="Type/edit text before translation..."></textarea>
                   <div class="d-flex gap-2 mt-3">
                     <button class="btn btn-primary w-50" id="btnTranslate">Translate</button>
-                    <button class="btn btn-outline-secondary w-50">Text to speech (Speaker A)</button>
+                    <button class="btn btn-outline-secondary w-50" id="ttsA">Text to speech (Speaker A)</button>
                   </div>
                 </div>
               </div>
@@ -187,7 +187,7 @@
                   <textarea id="bOutput" class="form-control" placeholder="Results will appear here..."
                     readonly></textarea>
                   <div class="mt-3">
-                    <button class="btn btn-outline-secondary w-100">Text to speech (Speaker B)</button>
+                    <button class="btn btn-outline-secondary w-100" id="ttsB">Text to speech (Speaker B)</button>
                   </div>
                 </div>
               </div>
