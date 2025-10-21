@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ระบบแปลเสียงและข้อความ</title>
+    <title>การแปลเสียง POC</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Link to Bootstrap CSS -->
@@ -51,7 +51,7 @@
 <body>
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">ระบบแปลเสียงและข้อความ POC</a>
+            <a class="navbar-brand" href="#">การแปลเสียง POC</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
                 data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
                 aria-label="Toggle navigation">
@@ -77,6 +77,7 @@
             </div>
         </div>
     </nav>
+
     <div class="wrap">
         <div class="row d-flex">
             <!-- Audio Devices Section (left) -->
@@ -84,10 +85,10 @@
                 <div class="card h-100 w-100 d-flex flex-column">
                     <div class="card-body">
                         <h5 class="card-title">อุปกรณ์เสียง</h5>
-                        <p class="card-text text-muted">แสดงรายการอุปกรณ์อินพุต/เอาต์พุตสำหรับการสาธิต</p>
+                        <p class="card-text text-muted">แสดงข้อมูลอุปกรณ์อินพุตและเอาท์พุตสำหรับการทดสอบ</p>
 
                         <!-- Scan Devices Section -->
-                        <h6 class="card-title">สแกนอุปกรณ์</h6>
+                        <h6 class="card-title">ค้นหาอุปกรณ์</h6>
                         <div class="mb-3">
                             <label for="inDev" class="form-label">อุปกรณ์อินพุต</label>
                             <select id="inDev" class="form-select">
@@ -95,21 +96,21 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="outDev" class="form-label">อุปกรณ์เอาต์พุต</label>
+                            <label for="outDev" class="form-label">อุปกรณ์เอาท์พุต</label>
                             <select id="outDev" class="form-select">
                                 <!-- Options can be dynamically populated -->
                             </select>
                         </div>
-                        <button class="btn btn-outline-secondary w-100" id="btnScan">สแกนอุปกรณ์</button>
+                        <button class="btn btn-outline-secondary w-100" id="btnScan">ค้นหาอุปกรณ์</button>
 
                         <!-- Settings Section -->
                         <h6 class="card-title mt-4">การตั้งค่า</h6>
                         <div class="mb-3">
-                            <label for="chunk" class="form-label">ขนาด Chunk</label>
+                            <label for="chunk" class="form-label">ขนาดชิ้นข้อมูล</label>
                             <select id="chunk" class="form-select">
-                                <option value="20ms">20 มิลลิวินาที</option>
-                                <option value="40ms">40 มิลลิวินาที</option>
-                                <option value="80ms">80 มิลลิวินาที</option>
+                                <option value="20ms">20 ms</option>
+                                <option value="40ms">40 ms</option>
+                                <option value="80ms">80 ms</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -134,14 +135,14 @@
                             <div class="card-body">
                                 <h5>การสตรีม</h5>
                                 <div class="d-flex gap-3">
-                                    <button class="btn btn-primary w-100" id="btnRec">แปลงเสียงเป็นข้อความ</button>
+                                    <button class="btn btn-primary w-100" id="btnRec">เสียงเป็นข้อความ</button>
                                     <button class="btn btn-warning w-100" id="btnPause"
                                         style="display:none;">หยุดชั่วคราว</button>
                                     <button class="btn btn-warning w-100" id="btnResume"
                                         style="display:none;">ดำเนินการต่อ</button>
                                     <button class="btn btn-danger w-100" id="btnStop"
                                         style="display:none;">หยุด</button>
-                                    <button class="btn btn-secondary w-100" id="btnClear">ล้างข้อมูล</button>
+                                    <button class="btn btn-secondary w-100" id="btnClear">ล้าง</button>
                                 </div>
                             </div>
                         </div>
@@ -159,7 +160,7 @@
                                     </h5>
                                     <select class="form-select mb-3" id="srcLang"></select>
                                     <h6>อัปโหลดไฟล์</h6>
-                                    <input id="audioFile" type="file" class="form-control mb-2" accept=".wav" />
+                                    <input id="audioFile" type="file" class="form-control mb-2" accept=".wav, .pcm" />
                                     <button id="btnUploadAudio" class="btn btn-outline-secondary w-100 mb-3">
                                         <span id="btnText">แปลงเสียงเป็นข้อความ (อัปโหลดเสียง)</span>
                                         <span id="spinner" class="spinner-border spinner-border-sm" role="status"
@@ -169,9 +170,13 @@
                                     <textarea id="aInput" class="form-control"
                                         placeholder="พิมพ์/แก้ไขข้อความก่อนการแปล..."></textarea>
                                     <div class="d-flex gap-2 mt-3">
-                                        <button class="btn btn-primary w-50" id="btnTranslate">แปลข้อความ</button>
-                                        <button class="btn btn-outline-secondary w-50">แปลงข้อความเป็นเสียง (ผู้พูด
-                                            A)</button>
+                                        <button id="btnTranslate" class="btn btn-primary w-50">
+                                            <span id="btnTextT">แปล</span>
+                                            <span id="spinnerT" class="spinner-border spinner-border-sm" role="status"
+                                                aria-hidden="true" style="display: none;"></span>
+                                        </button>
+                                        <button class="btn btn-outline-secondary w-50" id="ttsA">แปลงข้อความเป็นเสียง
+                                            (ผู้พูด A)</button>
                                     </div>
                                 </div>
                             </div>
@@ -190,8 +195,8 @@
                                     <textarea id="bOutput" class="form-control" placeholder="ผลลัพธ์จะปรากฏที่นี่..."
                                         readonly></textarea>
                                     <div class="mt-3">
-                                        <button class="btn btn-outline-secondary w-100">แปลงข้อความเป็นเสียง (ผู้พูด
-                                            B)</button>
+                                        <button class="btn btn-outline-secondary w-100" id="ttsB">แปลงข้อความเป็นเสียง
+                                            (ผู้พูด B)</button>
                                     </div>
                                 </div>
                             </div>
@@ -215,17 +220,17 @@
                             <tr>
                                 <th class="text-center" id="time">เวลา</th>
                                 <th class="text-center" id="original">ต้นฉบับ</th>
-                                <th class="text-center" id="translated">แปลแล้ว</th>
-                                <th class="text-center" id="stt(s)">แปลงเสียงเป็นข้อความ (s)</th>
-                                <th class="text-center" id="mt(s)">แปลข้อความ (s)</th>
+                                <th class="text-center" id="translated">แปล</th>
+                                <th class="text-center" id="stt(s)">เสียงเป็นข้อความ (s)</th>
+                                <th class="text-center" id="mt(s)">แปลโดยเครื่อง (s)</th>
                                 <th class="text-center" id="tts(s)">แปลงข้อความเป็นเสียง (s)</th>
                                 <th class="text-center" id="total(s)">รวม (s)</th>
                             </tr>
                         </thead>
                         <tbody id="logBody">
                             <tr>
-                                <td colspan="7" class="text-center text-muted" id="noLogsMessage">
-                                    ยังไม่มีข้อมูลการบันทึก กรุณาแปลข้อความเพื่อเติมข้อมูล</td>
+                                <td colspan="7" class="text-center text-muted" id="noLogsMessage">ยังไม่มีบันทึก.
+                                    กรุณาแปลข้อความเพื่อแสดงผล</td>
                             </tr>
                         </tbody>
                     </table>

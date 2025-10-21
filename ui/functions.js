@@ -22,6 +22,21 @@ const languages = {
   // ta_sg: "Tamil (Singapore)", // ภาษาทมิฬ (สิงคโปร์)
 };
 
+const languageMap = {
+  th: "tha",
+  en: "eng",
+  es: "spa",
+  fr: "fra",
+  it: "ita",
+  ru: "rus",
+  de: "deu",
+  zh: "zho",
+  ja: "jpn",
+  ko: "kor",
+  ar: "ara",
+  // Additional languages can be added here
+};
+
 /** ======= Devices scan ======= */
 const el = (id) => document.getElementById(id);
 async function scanDevices() {
@@ -102,7 +117,6 @@ populateLanguageSelect();
 
 // ฟังก์ชันสำหรับการอ่านออกเสียงข้อความจาก input field ที่เลือก
 function speakText(text, languageSelect) {
-
   if (text !== "") {
     // สร้าง speechSynthesisUtterance ใหม่
     const utterance = new SpeechSynthesisUtterance(text);
@@ -129,8 +143,12 @@ let socket = new WebSocket("ws://localhost:8000/ws");
 
 // แสดง spinner และปิดปุ่ม (disabled)
 const btnUploadAudio = el("btnUploadAudio");
+const btnTranslate = el("btnTranslate");
 const spinner = el("spinner");
 const btnText = el("btnText");
+
+const spinnerT = el("spinnerT");
+const btnTextT = el("btnTextT");
 
 socket.onerror = function (event) {
   console.error("WebSocket Error:", event);
@@ -177,6 +195,9 @@ socket.onmessage = function (event) {
     spinner.style.display = "none";
     btnText.style.display = "inline-block"; // กลับข้อความเดิม
   } else {
+    btnTranslate.disabled = false;
+    spinnerT.style.display = "none";
+    btnTextT.style.display = "inline-block"; // กลับข้อความเดิม
     // console.log("NNN");
     // สำหรับการแปลข้อความจากการส่งข้อความปกติ
     const translatedText = translated.split(": ")[1];
@@ -210,6 +231,9 @@ function sendTextForTranslation(text) {
 
 // เมื่อคลิกปุ่ม Translate เพื่อแปลข้อความที่ผู้ใช้แก้ไขและเลือกภาษาต้นทางใหม่
 document.getElementById("btnTranslate").addEventListener("click", function () {
+  btnTranslate.disabled = true; // Disable the button to prevent multiple clicks
+  spinnerT.style.display = "inline-block"; // Show spinner
+  btnTextT.style.display = "none"; // Hide "Upload Audio" text during loading
   el("bState").classList.remove("hidden");
   el("bState").textContent = "Waitting";
   let text = document.getElementById("aInput").value; // ข้อความที่ผู้ใช้แก้ไข
@@ -222,7 +246,6 @@ document.getElementById("btnTranslate").addEventListener("click", function () {
     );
     return;
   }
-
   // ส่งข้อความที่แก้ไขไปแปลตามภาษาต้นทางใหม่
   socket.send(`${text}|${srcLang}|${tgtLang}|normal`);
 });
@@ -238,7 +261,7 @@ document.getElementById("ttsA").addEventListener("click", function () {
     );
     return;
   }
-  speakText(text, srcLang)
+  speakText(text, srcLang);
 });
 
 document.getElementById("ttsB").addEventListener("click", function () {
@@ -251,7 +274,7 @@ document.getElementById("ttsB").addEventListener("click", function () {
     );
     return;
   }
-  speakText(text, tgtLang)
+  speakText(text, tgtLang);
 });
 
 // เมื่อผู้ใช้เปลี่ยนภาษาเริ่มต้น
@@ -395,42 +418,109 @@ function startRecording() {
 document
   .getElementById("btnUploadAudio")
   .addEventListener("click", function () {
-    const audioFile = document.getElementById("audioFile").files[0];
-    if (!audioFile) {
-      alert("Please select an audio file first!");
-      return;
-    }
+    console.log("a");
 
-    btnUploadAudio.disabled = true; // ปิดปุ่มเพื่อไม่ให้คลิกซ้ำ
-    spinner.style.display = "inline-block"; // แสดง spinner
-    btnText.style.display = "none"; // ซ่อนข้อความ "Upload Audio" ขณะโหลด
+    // Capture the start time
+    const startTime = Date.now();
 
-    const reader = new FileReader();
-    reader.onloadend = function () {
-      // ตรวจสอบว่าเป็น base64 string ที่ถูกต้อง
-      const audioBase64 = reader.result.split(",")[1]; // ตัด 'data:audio/wav;base64,' ออก
+    btnUploadAudio.disabled = true; // Disable the button to prevent multiple clicks
+    spinner.style.display = "inline-block"; // Show spinner
+    btnText.style.display = "none"; // Hide "Upload Audio" text during loading
 
-      const srcLang = document.getElementById("srcLang").value;
-      const tgtLang = document.getElementById("tgtLang").value;
+    const srcLang = document.getElementById("srcLang").value;
+    const tgtLang = document.getElementById("tgtLang").value;
+    const apiLangCode = languageMap[srcLang];
 
-      if (!srcLang || !tgtLang) {
-        console.log(
-          "[ERROR] Please ensure source and target languages are selected."
-        );
-        // รีเซ็ตสถานะปุ่ม
-        btnUploadAudio.disabled = false;
-        spinner.style.display = "none";
-        btnText.style.display = "inline-block"; // กลับข้อความเดิม
-        return;
-      }
+    // Create FormData for the audio file and parameters
+    const formData = new FormData();
+    formData.append(
+      "audio_file",
+      document.getElementById("audioFile").files[0]
+    ); // Assuming the file input ID is "audioFile"
+    formData.append("max_duration", "10");
+    formData.append("max_silence", "0.3");
+    formData.append("language", apiLangCode);
+    formData.append("srt", "no");
 
-      // ส่งข้อมูลเสียงในรูปแบบ base64 ผ่าน WebSocket
-      socket.send(`${audioBase64}|${srcLang}|${tgtLang}|audio`);
-    };
+    // Send the POST request using Fetch API
+    fetch("https://api-voice.botnoi.ai/api/genai/gensub_upload", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "botnoi-token": "K0dSfJoeOXRNNKyTt0uvzRh5ePm8BlZm",
+      },
+      body: formData,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        // Capture the end time
+        const endTime = Date.now();
+        const elapsedTime = (endTime - startTime) / 1000; // Time in seconds
+        stt = elapsedTime;
 
-    // อ่านไฟล์เสียงเป็น base64
-    reader.readAsDataURL(audioFile);
+        if (data.message === "Transcribe successfully") {
+          // Extract transcription text and display it in the input field
+          document.getElementById("aInput").value = data.data.text;
+          socket.send(`${data.data.text}|${srcLang}|${tgtLang}|normal`);
+
+          // // Output the duration to the console or a specific element
+          // console.log(`Time taken: ${elapsedTime} seconds`);
+
+          // // Optionally display the time taken on the page
+          // document.getElementById("timeTaken").textContent = `Time taken: ${elapsedTime.toFixed(2)} seconds`;
+
+          // Reset the button state
+          btnUploadAudio.disabled = false;
+          spinner.style.display = "none";
+          btnText.style.display = "inline-block"; // Show "Upload Audio" text again
+        } else {
+          console.error("Error: ", data.message);
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
   });
+
+// document
+//   .getElementById("btnUploadAudio")
+//   .addEventListener("click", function () {
+//     const audioFile = document.getElementById("audioFile").files[0];
+//     if (!audioFile) {
+//       alert("Please select an audio file first!");
+//       return;
+//     }
+
+//     btnUploadAudio.disabled = true; // ปิดปุ่มเพื่อไม่ให้คลิกซ้ำ
+//     spinner.style.display = "inline-block"; // แสดง spinner
+//     btnText.style.display = "none"; // ซ่อนข้อความ "Upload Audio" ขณะโหลด
+
+//     const reader = new FileReader();
+//     reader.onloadend = function () {
+//       // ตรวจสอบว่าเป็น base64 string ที่ถูกต้อง
+//       const audioBase64 = reader.result.split(",")[1]; // ตัด 'data:audio/wav;base64,' ออก
+
+//       const srcLang = document.getElementById("srcLang").value;
+//       const tgtLang = document.getElementById("tgtLang").value;
+
+//       if (!srcLang || !tgtLang) {
+//         console.log(
+//           "[ERROR] Please ensure source and target languages are selected."
+//         );
+//         // รีเซ็ตสถานะปุ่ม
+//         btnUploadAudio.disabled = false;
+//         spinner.style.display = "none";
+//         btnText.style.display = "inline-block"; // กลับข้อความเดิม
+//         return;
+//       }
+
+//       // ส่งข้อมูลเสียงในรูปแบบ base64 ผ่าน WebSocket
+//       socket.send(`${audioBase64}|${srcLang}|${tgtLang}|audio`);
+//     };
+
+//     // อ่านไฟล์เสียงเป็น base64
+//     reader.readAsDataURL(audioFile);
+//   });
 
 // Function to update the log table with the processing times
 function updateLogTable(originalText, translatedText, mtTime) {
@@ -477,7 +567,7 @@ document.getElementById("applySettings").addEventListener("click", function () {
   // );
 
   // Send settings to backend using AJAX (POST request)
-  fetch("http://45.154.27.238/set_audio_settings", {
+  fetch("http://45.154.27.238:8000/set_audio_settings", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
