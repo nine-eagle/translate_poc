@@ -1,13 +1,15 @@
 # Speech Translation POC - Docker Deployment Guide
 
-This guide will help you deploy the Speech Translation POC application on a Linux server using Docker and Docker Compose.
+This guide will help you deploy the Speech Translation POC application on a Linux server using Docker and Docker Compose with SSL/HTTPS support for your domain [aitranspoc.com](http://www.aitranspoc.com/).
 
 ## Prerequisites
 
 - Linux server with Docker and Docker Compose installed
 - At least 4GB RAM (recommended 8GB for ML model loading)
 - At least 10GB free disk space
-- Ports 80 and 8000 available
+- Ports 80, 443, and 8000 available
+- Domain name (aitranspoc.com) pointing to your server's IP address
+- Valid email address for SSL certificate registration
 
 ## Installation Steps
 
@@ -51,24 +53,52 @@ cd translate_poc
 # └── docker-compose.yml
 ```
 
-### 3. Build and Deploy
+### 3. DNS Configuration
+
+Before deploying, ensure your domain is properly configured:
+
+```bash
+# Check if your domain points to your server
+dig +short aitranspoc.com
+dig +short www.aitranspoc.com
+
+# Your domain should return your server's IP address
+```
+
+### 4. Deploy with SSL/HTTPS
+
+#### Option A: Automated SSL Deployment (Recommended)
+
+```bash
+# Run the complete SSL deployment script
+./deploy-ssl.sh
+```
+
+This script will:
+- Build and start all services
+- Request SSL certificates from Let's Encrypt
+- Configure HTTPS with automatic HTTP to HTTPS redirect
+- Set up automatic certificate renewal
+
+#### Option B: Manual SSL Setup
 
 ```bash
 # Build and start the containers
 docker-compose up -d --build
 
-# Check if containers are running
-docker-compose ps
+# Request SSL certificate
+docker-compose run --rm certbot
 
-# View logs if needed
-docker-compose logs -f
+# Restart nginx with SSL configuration
+docker-compose restart frontend
 ```
 
-### 4. Verify Deployment
+### 5. Verify Deployment
 
-- Open your browser and navigate to `http://your-server-ip`
+- Open your browser and navigate to `https://aitranspoc.com`
 - The application should load with the Speech Translation interface
 - Test the translation functionality
+- Verify that HTTP redirects to HTTPS automatically
 
 ## Configuration
 
@@ -99,13 +129,40 @@ services:
       - "8001:8000"  # Change 8000 to your desired port
 ```
 
-### SSL/HTTPS Setup (Optional)
+### SSL/HTTPS Configuration
 
-For production deployment with SSL:
+The application is configured with automatic SSL/HTTPS support:
 
-1. Obtain SSL certificates
-2. Update `ui/nginx.conf` to include SSL configuration
-3. Modify `docker-compose.yml` to expose port 443
+- **Automatic HTTP to HTTPS redirect**: All HTTP traffic is redirected to HTTPS
+- **Let's Encrypt certificates**: Free SSL certificates with automatic renewal
+- **Security headers**: HSTS, XSS protection, and other security headers
+- **Modern SSL configuration**: TLS 1.2+ with secure cipher suites
+
+#### SSL Certificate Management
+
+```bash
+# Renew certificates manually
+./renew-ssl.sh
+
+# Check certificate status
+docker-compose logs certbot
+
+# View certificate details
+openssl x509 -in certbot/conf/live/aitranspoc.com/fullchain.pem -text -noout
+```
+
+#### Custom SSL Configuration
+
+To modify SSL settings, edit `ui/nginx.conf`:
+
+```nginx
+# SSL Security Settings
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
+ssl_prefer_server_ciphers off;
+ssl_session_cache shared:SSL:10m;
+ssl_session_timeout 10m;
+```
 
 ## Management Commands
 
@@ -197,10 +254,12 @@ docker-compose ps
 
 ## Security Considerations
 
-1. **Firewall**: Configure firewall to only allow necessary ports
-2. **SSL**: Use HTTPS in production
-3. **Updates**: Regularly update Docker images and dependencies
-4. **Access Control**: Consider adding authentication if needed
+1. **Firewall**: Configure firewall to only allow necessary ports (80, 443, 22)
+2. **SSL**: HTTPS is automatically configured with Let's Encrypt certificates
+3. **Security Headers**: HSTS, XSS protection, and other security headers are enabled
+4. **Updates**: Regularly update Docker images and dependencies
+5. **Access Control**: Consider adding authentication if needed
+6. **Certificate Renewal**: Automatic renewal is configured via cron job
 
 ## File Structure After Deployment
 
@@ -213,11 +272,17 @@ translate_poc/
 │   └── uploaded_audio/          # Volume mounted
 ├── ui/
 │   ├── Dockerfile
-│   ├── nginx.conf
+│   ├── nginx.conf               # SSL-enabled nginx config
 │   ├── index.html
 │   ├── functions.js
 │   └── style.css
-├── docker-compose.yml
+├── certbot/
+│   ├── conf/                    # SSL certificates
+│   └── www/                     # Webroot for ACME challenges
+├── docker-compose.yml           # Includes Certbot service
+├── deploy-ssl.sh               # Complete SSL deployment script
+├── ssl-setup.sh                # SSL setup script
+├── renew-ssl.sh                # Certificate renewal script
 └── DEPLOYMENT.md
 ```
 
