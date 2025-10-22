@@ -85,6 +85,36 @@ el("aState").classList.add("hidden");
 el("bState").classList.add("hidden");
 scanDevices();
 
+// Check browser compatibility on page load
+function checkBrowserCompatibility() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  
+  if (!SpeechRecognition) {
+    console.warn('Speech Recognition API not supported');
+    const btnRec = document.getElementById("btnRec");
+    if (btnRec) {
+      btnRec.disabled = true;
+      btnRec.title = "Speech Recognition not supported in this browser. Please use Chrome, Edge, or Safari.";
+      btnRec.style.opacity = "0.5";
+    }
+  }
+  
+  // Check if HTTPS (except localhost)
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.warn('HTTPS required for microphone access on mobile');
+  }
+  
+  // Log browser info for debugging
+  console.log('Browser info:', {
+    userAgent: navigator.userAgent,
+    speechRecognition: !!SpeechRecognition,
+    https: location.protocol === 'https:',
+    hostname: location.hostname
+  });
+}
+
+checkBrowserCompatibility();
+
 // ฟังก์ชันเติมตัวเลือกภาษาลงใน dropdown
 function populateLanguageSelect() {
   const srcLangSelect = document.getElementById("srcLang");
@@ -139,7 +169,10 @@ let recognition;
 let isRecording = false;
 let stt = 0;
 let txt_speech = 0;
-let socket = new WebSocket("wss://45.154.27.238:8000/ws");
+// Use relative URL for WebSocket - automatically uses ws:// or wss:// based on page protocol
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsHost = window.location.host;
+let socket = new WebSocket(`${wsProtocol}//${wsHost}/ws`);
 
 // แสดง spinner และปิดปุ่ม (disabled)
 const btnUploadAudio = el("btnUploadAudio");
@@ -368,51 +401,111 @@ let interimTranscript = "";
 
 // ฟังก์ชันเริ่มการบันทึกเสียง
 function startRecording() {
-  recognition = new (window.SpeechRecognition ||
-    window.webkitSpeechRecognition)();
-  recognition.lang = document.getElementById("srcLang").value;
-  recognition.continuous = true;
-  recognition.interimResults = true;
+  // Check if Speech Recognition is supported
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  
+  if (!SpeechRecognition) {
+    alert('Speech Recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+    return;
+  }
 
-  recognition.onresult = function (event) {
-    const startTime = Date.now(); // Time when the recording starts
-    interimTranscript = ""; // Reset interim transcript
+  // Check if running on HTTPS (required for mobile)
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    alert('Microphone access requires HTTPS connection on mobile devices.');
+    return;
+  }
 
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript; // Final transcript
-      } else {
-        interimTranscript += event.results[i][0].transcript; // Interim result
+  try {
+    recognition = new SpeechRecognition();
+    recognition.lang = document.getElementById("srcLang").value;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+      console.log('Speech recognition started');
+      el("aState").classList.remove("hidden");
+      el("aState").textContent = "Listening...";
+    };
+
+    recognition.onerror = function(event) {
+      console.error('Speech recognition error:', event.error);
+      el("aState").textContent = "Error";
+      
+      let errorMessage = 'Microphone error: ';
+      switch(event.error) {
+        case 'no-speech':
+          errorMessage += 'No speech detected. Please try again.';
+          break;
+        case 'audio-capture':
+          errorMessage += 'Microphone not found or not accessible.';
+          break;
+        case 'not-allowed':
+          errorMessage += 'Microphone permission denied. Please allow microphone access in your browser settings.';
+          break;
+        case 'network':
+          errorMessage += 'Network error occurred.';
+          break;
+        case 'aborted':
+          errorMessage += 'Recognition aborted.';
+          break;
+        default:
+          errorMessage += event.error;
       }
-    }
+      alert(errorMessage);
+      
+      // Reset buttons
+      document.getElementById("btnStop").style.display = "none";
+      document.getElementById("btnRec").style.display = "inline-block";
+      document.getElementById("btnPause").style.display = "none";
+      document.getElementById("btnResume").style.display = "none";
+    };
 
-    // เพิ่มข้อความใหม่ไปยัง aInput โดยไม่รีเซ็ตข้อความเก่า
-    document.getElementById("aInput").value =
-      finalTranscript + interimTranscript;
+    recognition.onend = function() {
+      console.log('Speech recognition ended');
+      el("aState").textContent = "Stopped";
+    };
 
-    // ตรวจสอบว่า finalTranscript มีข้อความใหม่และแตกต่างจาก lastTranscript
-    if (finalTranscript.length > 0 && finalTranscript !== lastTranscript) {
-      lastTranscript = finalTranscript;
+    recognition.onresult = function (event) {
+      const startTime = Date.now(); // Time when the recording starts
+      interimTranscript = ""; // Reset interim transcript
 
-      // กำหนดเวลาในการแปล (เช่น รอ 1 วินาทีหลังจากมีการพูดเสร็จ)
-      clearTimeout(translationTimeout); // ยกเลิกการแปลก่อนหน้านี้หากยังมีการพูดอยู่
-      translationTimeout = setTimeout(function () {
-        // ส่งข้อความไปแปลเมื่อไม่ได้รับข้อความใหม่จากการพูด
-        sendTextForTranslation(finalTranscript);
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript; // Final transcript
+        } else {
+          interimTranscript += event.results[i][0].transcript; // Interim result
+        }
+      }
 
-        // คำนวณเวลาในการแปลงเสียงเป็นข้อความ
-        const endTime = Date.now();
-        const elapsedTime = (endTime - startTime) / 1000; // Time in seconds
-        stt = elapsedTime;
-        // console.log(
-        //   `Time taken for speech-to-text: ${elapsedTime.toFixed(2)} seconds`
-        // );
-        // console.log(stt)
-      }, 1000); // รอ 1 วินาทีหลังจากการพูดเสร็จ
-    }
-  };
+      // เพิ่มข้อความใหม่ไปยัง aInput โดยไม่รีเซ็ตข้อความเก่า
+      document.getElementById("aInput").value =
+        finalTranscript + interimTranscript;
 
-  recognition.start(); // เริ่มการบันทึกเสียง
+      // ตรวจสอบว่า finalTranscript มีข้อความใหม่และแตกต่างจาก lastTranscript
+      if (finalTranscript.length > 0 && finalTranscript !== lastTranscript) {
+        lastTranscript = finalTranscript;
+
+        // กำหนดเวลาในการแปล (เช่น รอ 1 วินาทีหลังจากมีการพูดเสร็จ)
+        clearTimeout(translationTimeout); // ยกเลิกการแปลก่อนหน้านี้หากยังมีการพูดอยู่
+        translationTimeout = setTimeout(function () {
+          // ส่งข้อความไปแปลเมื่อไม่ได้รับข้อความใหม่จากการพูด
+          sendTextForTranslation(finalTranscript);
+
+          // คำนวณเวลาในการแปลงเสียงเป็นข้อความ
+          const endTime = Date.now();
+          const elapsedTime = (endTime - startTime) / 1000; // Time in seconds
+          stt = elapsedTime;
+        }, 1000); // รอ 1 วินาทีหลังจากการพูดเสร็จ
+      }
+    };
+
+    recognition.start(); // เริ่มการบันทึกเสียง
+    
+  } catch (error) {
+    console.error('Failed to start recognition:', error);
+    alert('Failed to start microphone: ' + error.message);
+  }
 }
 
 document
