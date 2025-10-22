@@ -26,7 +26,13 @@ LANG_CODES = {
     "ko": "kor_Hang",
     "ja": "jpn_Jpan",
     "ar": "arb_Arab",
+    "af": "afr_Latn",  # Afrikaans
+    "hr": "hrv_Latn",  # Croatian
+    "ms": "msa_Latn",  # Malay
+    "hi": "hin_Deva",  # Hindi
+    "bn": "ben_Beng",  # Bengali
 }
+
 LANG_CODES2 = {
     "th": "th-TH",  # ภาษาไทย
     "en": "en-US",  # ภาษาอังกฤษ
@@ -38,6 +44,11 @@ LANG_CODES2 = {
     "zh": "zh-CN",  # ภาษาจีน (จีนกลาง)
     "ja": "ja-JP",  # ภาษาญี่ปุ่น
     "ar": "ar-SA",  # ภาษาอาหรับ
+    "af": "af-ZA",  # ภาษาแอฟริกา
+    "hr": "hr-HR",  # ภาษาโครเอเชีย
+    "ms": "ms-MY",  # ภาษา มาเลย์
+    "hi": "hi-IN",  # ภาษา ฮินดี (อินเดีย)
+    "bn": "bn-BD",  # ภาษาเบงกาลี (บังคลาเทศ)
 }
 
 # Mapping language codes to token IDs
@@ -53,23 +64,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Health check endpoint
-@app.get("/")
-async def root():
-    return {
-        "status": "ok",
-        "message": "Translation API is running",
-        "model": MODEL_NAME,
-        "supported_languages": list(LANG_CODES.keys())
-    }
-
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "model_loaded": model is not None and tokenizer is not None
-    }
 
 # ฟังก์ชันแปล
 def translate(text: str, src: str, tgt: str) -> dict:
@@ -137,58 +131,19 @@ def audio_to_text(audio_base64: str, language_code: str) -> str:
     except Exception as e:
         return f"[ERROR] {str(e)}"
     
-@app.get("/set_audio_settings")
-async def get_audio_settings():
-    """Get current audio settings (placeholder)"""
-    return {
-        "status": "info",
-        "message": "Use POST method to update audio settings",
-        "example": {
-            "chunkSize": "20ms",
-            "vadSensitivity": "Medium"
-        }
-    }
-
 @app.post("/set_audio_settings")
 async def set_audio_settings(request: Request):
-    try:
-        # อ่าน JSON body
-        data = await request.json()
-        
-        if not data:
-            return {"error": "Empty request body", "message": "No data provided"}
-        
-        chunk_size = data.get('chunkSize')
-        vad_sensitivity = data.get('vadSensitivity')
+    body = await request.json()  # รับข้อมูล JSON
+    chunk_size = body.get('chunkSize')
+    vad_sensitivity = body.get('vadSensitivity')
 
-        # พิมพ์ค่าการตั้งค่าสำหรับการตรวจสอบ
-        print(f"Received - Chunk Size: {chunk_size}, VAD Sensitivity: {vad_sensitivity}")
+    # พิมพ์ค่าการตั้งค่าสำหรับการตรวจสอบ
+    print(f"Chunk Size: {chunk_size}, VAD Sensitivity: {vad_sensitivity}")
 
-        # ปรับค่าการตั้งค่าการจับเสียง
-        apply_audio_settings(vad_sensitivity, chunk_size)
+    # ปรับค่าการตั้งค่าการจับเสียง
+    apply_audio_settings(chunk_size, vad_sensitivity)
 
-        return {
-            "status": "success",
-            "message": "Audio settings updated successfully",
-            "settings": {
-                "chunkSize": chunk_size,
-                "vadSensitivity": vad_sensitivity
-            }
-        }
-    except ValueError as e:
-        print(f"JSON decode error in set_audio_settings: {str(e)}")
-        return {
-            "status": "error",
-            "error": "Invalid JSON format",
-            "message": "Request body must be valid JSON"
-        }
-    except Exception as e:
-        print(f"Error in set_audio_settings: {str(e)}")
-        return {
-            "status": "error",
-            "error": str(e),
-            "message": "Failed to update audio settings"
-        }
+    return {"message": "Audio settings updated successfully"}
 
 
 # ฟังก์ชันสำหรับตั้งค่าการจับเสียง (VAD Sensitivity) และขนาดช่วงเสียง (Chunk Size)
@@ -217,17 +172,10 @@ def apply_audio_settings(vad_sensitivity: str, chunk_size: str):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    print("WebSocket client connected")
     try:
         while True:
             data = await websocket.receive_text()
-            print(f"Received data: {data[:100]}...")  # Log first 100 chars
             parts = data.split('|')
-
-            if len(parts) < 3:
-                print(f"Invalid data format: expected at least 3 parts, got {len(parts)}")
-                await websocket.send_text(f"Original: \nTranslated: Error - Invalid data format\nMT: 0\nAction: error")
-                continue
 
             if parts[-1] == "audio":
                 audio_base64 = parts[0]
@@ -236,7 +184,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 src_lang_code = LANG_CODES2.get(src_lang, "en")
                 tgt_lang_code = LANG_CODES2.get(tgt_lang, "en")
-                print(f"{src_lang_code}")
+                print(f"{src_lang}")
                 # แปลงไฟล์เสียงเป็นข้อความ
                 audio_start_time = time.time()
                 text = audio_to_text(audio_base64, src_lang_code)
@@ -248,22 +196,19 @@ async def websocket_endpoint(websocket: WebSocket):
                 translated_data = translate(text, src_lang, tgt_lang)
                 translation_end_time = time.time()
                 
-                # ตรวจสอบว่ามี error หรือไม่
-                if "error" in translated_data:
-                    await websocket.send_text(f"Original: {text}\nTranslated: Error - {translated_data['error']}\nMT: {translated_data.get('translation_time', '0')}\nAction: audio")
-                else:
-                    await websocket.send_text(f"Original: {text}\nTranslated: {translated_data['translated_text']}\nMT: {translated_data['translation_time']}\nAction: audio")
+                # parts = translated_text.split(',')
+                # ส่งข้อมูลที่แปลงไปยัง Frontend
+                await websocket.send_text(f"Original: {text}\nTranslated: {translated_data['translated_text']}\nMT: {translated_data['translation_time']}\nAction: audio"
+)
             else:
                 text, src_lang, tgt_lang, action = parts
                 translation_start_time = time.time()
                 translated_data = translate(text, src_lang, tgt_lang)
                 translation_end_time = time.time()
                 
-                # ตรวจสอบว่ามี error หรือไม่
-                if "error" in translated_data:
-                    await websocket.send_text(f"Original: {text}\nTranslated: Error - {translated_data['error']}\nMT: {translated_data.get('translation_time', '0')}\nAction: {action}")
-                else:
-                    await websocket.send_text(f"Original: {text}\nTranslated: {translated_data['translated_text']}\nMT: {translated_data['translation_time']}\nAction: {action}")
+                # parts = translated_text.split(',')
+                
+                await websocket.send_text(f"Original: {text}\nTranslated: {translated_data['translated_text']}\nMT: {translated_data['translation_time']}\nAction: {action}")
 
     except WebSocketDisconnect:
         print("Client disconnected")

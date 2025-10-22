@@ -11,30 +11,49 @@ const languages = {
   ja: "Japanese",
   ko: "Korean",
   ar: "Arabic",
-  // zh_cantonese: "Chinese (Cantonese)", // จีนกวางตุ้ง (Cantonese)
-  // zh_hakka: "Chinese (Hakka)", // จีนฮากกา (Hakka)
-  // hi: "Hindi", // ภาษาอินเดีย (ฮินดี)
-  // bn: "Bengali", // ภาษาเบงกาลี
-  // ta: "Tamil", // ภาษาอินเดีย (ทมิฬ)
-  // ml: "Malayalam", // ภาษาอินเดีย (มาลายาลัม)
-  // my: "Burmese", // ภาษาเมียนมาร์
-  // ms: "Malay", // ภาษามลายู (สิงคโปร์)
-  // ta_sg: "Tamil (Singapore)", // ภาษาทมิฬ (สิงคโปร์)
+  af: "Afrikaans", // ภาษาแอฟริกา
+  hr: "Croatian", // ภาษาโครเอเชีย
+  ms: "Malay", // ภาษามาเลย์
+  hi: "Hindi", // ภาษาฮินดี (อินเดีย)
+  bn: "Bengali", // ภาษาเบงกาลี (บังคลาเทศ)
 };
 
 const languageMap = {
-  th: "tha",
-  en: "eng",
-  es: "spa",
-  fr: "fra",
-  it: "ita",
-  ru: "rus",
-  de: "deu",
-  zh: "zho",
-  ja: "jpn",
-  ko: "kor",
-  ar: "ara",
-  // Additional languages can be added here
+  th: "tha", // ภาษาไทย
+  en: "eng", // ภาษาอังกฤษ
+  es: "spa", // ภาษาสเปน
+  fr: "fra", // ภาษาฝรั่งเศส
+  it: "ita", // ภาษาอิตาลี
+  ru: "rus", // ภาษารัสเซีย
+  de: "deu", // ภาษาเยอรมัน
+  zh: "zho", // ภาษาจีน
+  ja: "jpn", // ภาษาญี่ปุ่น
+  ko: "kor", // ภาษาเกาหลี
+  ar: "ara", // ภาษาอาหรับ
+  af: "afr", // ภาษาแอฟริกา
+  hr: "hrv", // ภาษาโครเอเชีย
+  ms: "mal", // ภาษามาเลย์
+  hi: "hin", // ภาษาฮินดี (อินเดีย)
+  bn: "ben", // ภาษาเบงกาลี (บังคลาเทศ)
+};
+
+const flag_all = {
+  th: "th",
+  en: "gb",
+  es: "es",
+  fr: "fr",
+  it: "it",
+  ru: "ru",
+  de: "de",
+  zh: "cn",
+  ja: "jp",
+  ko: "kr",
+  ar: "ar",
+  af: "af", // ภาษาแอฟริกา
+  hr: "hr", // ภาษาโครเอเชีย
+  ms: "my", // ภาษามาเลย์
+  hi: "in", // ภาษาฮินดี (อินเดีย)
+  bn: "bd", // ภาษาเบงกาลี (บังคลาเทศ)
 };
 
 /** ======= Devices scan ======= */
@@ -85,37 +104,6 @@ el("aState").classList.add("hidden");
 el("bState").classList.add("hidden");
 scanDevices();
 
-// Check browser compatibility on page load
-function checkBrowserCompatibility() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  
-  if (!SpeechRecognition) {
-    console.warn('Speech Recognition API not supported');
-    const btnRec = document.getElementById("btnRec");
-    if (btnRec) {
-      btnRec.disabled = true;
-      btnRec.title = "Speech Recognition not supported in this browser. Please use Chrome, Edge, or Safari.";
-      btnRec.style.opacity = "0.5";
-    }
-  }
-  
-  // Check if HTTPS (except localhost)
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    console.warn('HTTPS required for microphone access on mobile');
-  }
-  
-  // Log browser info for debugging
-  console.log('Browser info:', {
-    userAgent: navigator.userAgent,
-    speechRecognition: !!SpeechRecognition,
-    https: location.protocol === 'https:',
-    hostname: location.hostname
-  });
-}
-
-checkBrowserCompatibility();
-
-// ฟังก์ชันเติมตัวเลือกภาษาลงใน dropdown
 function populateLanguageSelect() {
   const srcLangSelect = document.getElementById("srcLang");
   const tgtLangSelect = document.getElementById("tgtLang");
@@ -125,21 +113,45 @@ function populateLanguageSelect() {
     const optionSrc = document.createElement("option");
     optionSrc.value = code;
     optionSrc.text = language;
+
+    // เพิ่มตัวเลือกใน srcLang
     srcLangSelect.appendChild(optionSrc);
 
     const optionTgt = document.createElement("option");
     optionTgt.value = code;
     optionTgt.text = language;
-    tgtLangSelect.appendChild(optionTgt);
 
-    // ตั้งค่า data-prev-value ของ select ให้เป็นค่าของตัวเลือกแรก
-    if (srcLangSelect.options.length > 0) {
-      srcLangSelect.setAttribute(
-        "data-prev-value",
-        srcLangSelect.options[0].value
-      );
-    }
+    // เพิ่มตัวเลือกใน tgtLang
+    tgtLangSelect.appendChild(optionTgt);
   }
+
+  // ตั้งค่า data-prev-value ของ select ให้เป็นค่าของตัวเลือกแรก
+  if (srcLangSelect.options.length > 0) {
+    srcLangSelect.setAttribute(
+      "data-prev-value",
+      srcLangSelect.options[0].value
+    );
+  }
+
+  // ตั้งค่า srcLang เป็น "th" (ภาษาไทย) และ tgtLang เป็น "en" (ภาษาอังกฤษ)
+  srcLangSelect.value = "th"; // Set srcLang to Thai
+  tgtLangSelect.value = "en"; // Set tgtLang to English
+
+  // ป้องกันการเลือกภาษาเดียวกันใน srcLang และ tgtLang
+  disableSameLanguageOption(srcLangSelect, tgtLangSelect);
+}
+
+// ฟังก์ชันเพื่อป้องกันการเลือกภาษาเดียวกันใน srcLang และ tgtLang
+function disableSameLanguageOption(srcLangSelect, tgtLangSelect) {
+  // Disable matching language in tgtLang if it's selected in srcLang
+  Array.from(tgtLangSelect.options).forEach((option) => {
+    option.disabled = option.value === srcLangSelect.value;
+  });
+
+  // Disable matching language in srcLang if it's selected in tgtLang
+  Array.from(srcLangSelect.options).forEach((option) => {
+    option.disabled = option.value === tgtLangSelect.value;
+  });
 }
 
 // เรียกฟังก์ชันเพื่อเติมภาษาเมื่อหน้าโหลด
@@ -169,10 +181,8 @@ let recognition;
 let isRecording = false;
 let stt = 0;
 let txt_speech = 0;
-// Use relative URL for WebSocket - automatically uses ws:// or wss:// based on page protocol
-const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const wsHost = window.location.host;
-let socket = new WebSocket(`${wsProtocol}//${wsHost}/ws`);
+let socket = new WebSocket("wss://aitranspoc.com/ws");
+// let socket = new WebSocket("ws://localhost:8000/ws");
 
 // แสดง spinner และปิดปุ่ม (disabled)
 const btnUploadAudio = el("btnUploadAudio");
@@ -323,6 +333,8 @@ document.getElementById("srcLang").addEventListener("change", function () {
   let text = document.getElementById("aInput").value;
   let srcLang = prevTgtLang || this.value;
   let tgtLang = this.value;
+  updateFlag("flag_a", tgtLang);
+  disableSameLanguageOption(this, document.getElementById("tgtLang"));
   let action = "change_srcLang";
 
   // ตรวจสอบว่ามีข้อความและภาษาปลายทางใหม่ที่เลือก
@@ -334,18 +346,49 @@ document.getElementById("srcLang").addEventListener("change", function () {
 
 // เมื่อผู้ใช้เปลี่ยนภาษาเป้าหมาย
 document.getElementById("tgtLang").addEventListener("change", function () {
+  updateLanguageOptions();
   el("bState").classList.remove("hidden");
   el("bState").textContent = "Waitting";
   let text = document.getElementById("aInput").value;
   let srcLang = document.getElementById("srcLang").value;
   let tgtLang = this.value;
   let action = "change_tgtLang";
+  updateFlag("flag_b", tgtLang);
+
+  disableSameLanguageOption(document.getElementById("srcLang"), this);
 
   // ตรวจสอบว่ามีข้อความและภาษาปลายทางใหม่ที่เลือก
   if (text && srcLang && tgtLang) {
     socket.send(`${text}|${srcLang}|${tgtLang}|${action}`);
   }
 });
+
+// ฟังก์ชันที่ใช้ในการอัพเดทตัวเลือกภาษาหลังจากเลือก
+function updateLanguageOptions() {
+  const srcLangSelect = document.getElementById("srcLang");
+  const tgtLangSelect = document.getElementById("tgtLang");
+
+  const selectedSrcLang = srcLangSelect.value;
+  const selectedTgtLang = tgtLangSelect.value;
+
+  // อัพเดตตัวเลือกใน srcLang
+  Array.from(srcLangSelect.options).forEach((option) => {
+    if (option.value === selectedTgtLang) {
+      option.disabled = true; // ปิดการเลือกภาษาเดียวกันใน tgtLang
+    } else {
+      option.disabled = false;
+    }
+  });
+
+  // อัพเดตตัวเลือกใน tgtLang
+  Array.from(tgtLangSelect.options).forEach((option) => {
+    if (option.value === selectedSrcLang) {
+      option.disabled = true; // ปิดการเลือกภาษาเดียวกันใน srcLang
+    } else {
+      option.disabled = false;
+    }
+  });
+}
 
 // เมื่อคลิกปุ่ม Record
 document.getElementById("btnRec").addEventListener("click", function () {
@@ -401,118 +444,56 @@ let interimTranscript = "";
 
 // ฟังก์ชันเริ่มการบันทึกเสียง
 function startRecording() {
-  // Check if Speech Recognition is supported
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  
-  if (!SpeechRecognition) {
-    alert('Speech Recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
-    return;
-  }
+  recognition = new (window.SpeechRecognition ||
+    window.webkitSpeechRecognition)();
+  recognition.lang = document.getElementById("srcLang").value;
+  recognition.continuous = true;
+  recognition.interimResults = true;
 
-  // Check if running on HTTPS (required for mobile)
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-    alert('Microphone access requires HTTPS connection on mobile devices.');
-    return;
-  }
+  recognition.onresult = function (event) {
+    const startTime = Date.now(); // Time when the recording starts
+    interimTranscript = ""; // Reset interim transcript
 
-  try {
-    recognition = new SpeechRecognition();
-    recognition.lang = document.getElementById("srcLang").value;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = function() {
-      console.log('Speech recognition started');
-      el("aState").classList.remove("hidden");
-      el("aState").textContent = "Listening...";
-    };
-
-    recognition.onerror = function(event) {
-      console.error('Speech recognition error:', event.error);
-      el("aState").textContent = "Error";
-      
-      let errorMessage = 'Microphone error: ';
-      switch(event.error) {
-        case 'no-speech':
-          errorMessage += 'No speech detected. Please try again.';
-          break;
-        case 'audio-capture':
-          errorMessage += 'Microphone not found or not accessible.';
-          break;
-        case 'not-allowed':
-          errorMessage += 'Microphone permission denied. Please allow microphone access in your browser settings.';
-          break;
-        case 'network':
-          errorMessage += 'Network error occurred.';
-          break;
-        case 'aborted':
-          errorMessage += 'Recognition aborted.';
-          break;
-        default:
-          errorMessage += event.error;
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript; // Final transcript
+      } else {
+        interimTranscript += event.results[i][0].transcript; // Interim result
       }
-      alert(errorMessage);
-      
-      // Reset buttons
-      document.getElementById("btnStop").style.display = "none";
-      document.getElementById("btnRec").style.display = "inline-block";
-      document.getElementById("btnPause").style.display = "none";
-      document.getElementById("btnResume").style.display = "none";
-    };
+    }
 
-    recognition.onend = function() {
-      console.log('Speech recognition ended');
-      el("aState").textContent = "Stopped";
-    };
+    // เพิ่มข้อความใหม่ไปยัง aInput โดยไม่รีเซ็ตข้อความเก่า
+    document.getElementById("aInput").value =
+      finalTranscript + interimTranscript;
 
-    recognition.onresult = function (event) {
-      const startTime = Date.now(); // Time when the recording starts
-      interimTranscript = ""; // Reset interim transcript
+    // ตรวจสอบว่า finalTranscript มีข้อความใหม่และแตกต่างจาก lastTranscript
+    if (finalTranscript.length > 0 && finalTranscript !== lastTranscript) {
+      lastTranscript = finalTranscript;
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript; // Final transcript
-        } else {
-          interimTranscript += event.results[i][0].transcript; // Interim result
-        }
-      }
+      // กำหนดเวลาในการแปล (เช่น รอ 1 วินาทีหลังจากมีการพูดเสร็จ)
+      clearTimeout(translationTimeout); // ยกเลิกการแปลก่อนหน้านี้หากยังมีการพูดอยู่
+      translationTimeout = setTimeout(function () {
+        // ส่งข้อความไปแปลเมื่อไม่ได้รับข้อความใหม่จากการพูด
+        sendTextForTranslation(finalTranscript);
 
-      // เพิ่มข้อความใหม่ไปยัง aInput โดยไม่รีเซ็ตข้อความเก่า
-      document.getElementById("aInput").value =
-        finalTranscript + interimTranscript;
+        // คำนวณเวลาในการแปลงเสียงเป็นข้อความ
+        const endTime = Date.now();
+        const elapsedTime = (endTime - startTime) / 1000; // Time in seconds
+        stt = elapsedTime;
+        // console.log(
+        //   `Time taken for speech-to-text: ${elapsedTime.toFixed(2)} seconds`
+        // );
+        // console.log(stt)
+      }, 1000); // รอ 1 วินาทีหลังจากการพูดเสร็จ
+    }
+  };
 
-      // ตรวจสอบว่า finalTranscript มีข้อความใหม่และแตกต่างจาก lastTranscript
-      if (finalTranscript.length > 0 && finalTranscript !== lastTranscript) {
-        lastTranscript = finalTranscript;
-
-        // กำหนดเวลาในการแปล (เช่น รอ 1 วินาทีหลังจากมีการพูดเสร็จ)
-        clearTimeout(translationTimeout); // ยกเลิกการแปลก่อนหน้านี้หากยังมีการพูดอยู่
-        translationTimeout = setTimeout(function () {
-          // ส่งข้อความไปแปลเมื่อไม่ได้รับข้อความใหม่จากการพูด
-          sendTextForTranslation(finalTranscript);
-
-          // คำนวณเวลาในการแปลงเสียงเป็นข้อความ
-          const endTime = Date.now();
-          const elapsedTime = (endTime - startTime) / 1000; // Time in seconds
-          stt = elapsedTime;
-        }, 1000); // รอ 1 วินาทีหลังจากการพูดเสร็จ
-      }
-    };
-
-    recognition.start(); // เริ่มการบันทึกเสียง
-    
-  } catch (error) {
-    console.error('Failed to start recognition:', error);
-    alert('Failed to start microphone: ' + error.message);
-  }
+  recognition.start(); // เริ่มการบันทึกเสียง
 }
 
 document
   .getElementById("btnUploadAudio")
   .addEventListener("click", function () {
-    console.log("a");
-
     // Capture the start time
     const startTime = Date.now();
 
@@ -561,18 +542,17 @@ document
 
           // // Optionally display the time taken on the page
           // document.getElementById("timeTaken").textContent = `Time taken: ${elapsedTime.toFixed(2)} seconds`;
-
-          // Reset the button state
-          btnUploadAudio.disabled = false;
-          spinner.style.display = "none";
-          btnText.style.display = "inline-block"; // Show "Upload Audio" text again
         } else {
-          console.error("Error: ", data.message);
+          alert("Error: ", data.message);
         }
       })
       .catch((error) => {
         console.error("Error:", error);
       });
+    // Reset the button state
+    btnUploadAudio.disabled = false;
+    spinner.style.display = "none";
+    btnText.style.display = "inline-block"; // Show "Upload Audio" text again
   });
 
 // document
@@ -659,8 +639,8 @@ document.getElementById("applySettings").addEventListener("click", function () {
   //   `Chunk Size: ${chunkSize}, VAD Sensitivity: ${vadSensitivity}`
   // );
 
-  // Send settings to backend using AJAX (POST request) - use relative URL for proxy
-  fetch("/set_audio_settings", {
+  // Send settings to backend using AJAX (POST request)
+  fetch("http://45.154.27.238:8000/set_audio_settings", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -670,25 +650,16 @@ document.getElementById("applySettings").addEventListener("click", function () {
       vadSensitivity: vadSensitivity,
     }),
   })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
+    .then((response) => response.json())
     .then((data) => {
       // Show success status in console
       console.log("Settings applied:", data);
-      if (data.status === "success") {
-        alert("Settings applied successfully!");
-      } else {
-        alert(`Settings update: ${data.message}`);
-      }
+      alert("Settings applied successfully!");
     })
     .catch((error) => {
       // Handle errors
       console.error("Error:", error);
-      alert(`Error applying settings: ${error.message}`);
+      alert("Error applying settings.");
     });
 });
 
@@ -715,4 +686,11 @@ function exportToJson() {
   link.href = URL.createObjectURL(blob);
   link.download = "evidence_data.json";
   link.click();
+}
+
+function updateFlag(id, lang) {
+  // console.log(`https://flagcdn.com/32x24/${flag_all[lang]}.png`);
+  document.getElementById(
+    `${id}`
+  ).src = `https://flagcdn.com/32x24/${flag_all[lang]}.png`;
 }
