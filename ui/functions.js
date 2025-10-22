@@ -659,8 +659,8 @@ document.getElementById("applySettings").addEventListener("click", function () {
   //   `Chunk Size: ${chunkSize}, VAD Sensitivity: ${vadSensitivity}`
   // );
 
-  // Send settings to backend using AJAX (POST request)
-  fetch("http://45.154.27.238:8000/set_audio_settings", {
+  // Send settings to backend using AJAX (POST request) - use relative URL for proxy
+  fetch("/set_audio_settings", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -670,16 +670,25 @@ document.getElementById("applySettings").addEventListener("click", function () {
       vadSensitivity: vadSensitivity,
     }),
   })
-    .then((response) => response.json())
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
     .then((data) => {
       // Show success status in console
       console.log("Settings applied:", data);
-      alert("Settings applied successfully!");
+      if (data.status === "success") {
+        alert("Settings applied successfully!");
+      } else {
+        alert(`Settings update: ${data.message}`);
+      }
     })
     .catch((error) => {
       // Handle errors
       console.error("Error:", error);
-      alert("Error applying settings.");
+      alert(`Error applying settings: ${error.message}`);
     });
 });
 

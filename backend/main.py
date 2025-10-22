@@ -137,19 +137,58 @@ def audio_to_text(audio_base64: str, language_code: str) -> str:
     except Exception as e:
         return f"[ERROR] {str(e)}"
     
+@app.get("/set_audio_settings")
+async def get_audio_settings():
+    """Get current audio settings (placeholder)"""
+    return {
+        "status": "info",
+        "message": "Use POST method to update audio settings",
+        "example": {
+            "chunkSize": "20ms",
+            "vadSensitivity": "Medium"
+        }
+    }
+
 @app.post("/set_audio_settings")
 async def set_audio_settings(request: Request):
-    body = await request.json()  # รับข้อมูล JSON
-    chunk_size = body.get('chunkSize')
-    vad_sensitivity = body.get('vadSensitivity')
+    try:
+        # อ่าน JSON body
+        data = await request.json()
+        
+        if not data:
+            return {"error": "Empty request body", "message": "No data provided"}
+        
+        chunk_size = data.get('chunkSize')
+        vad_sensitivity = data.get('vadSensitivity')
 
-    # พิมพ์ค่าการตั้งค่าสำหรับการตรวจสอบ
-    print(f"Chunk Size: {chunk_size}, VAD Sensitivity: {vad_sensitivity}")
+        # พิมพ์ค่าการตั้งค่าสำหรับการตรวจสอบ
+        print(f"Received - Chunk Size: {chunk_size}, VAD Sensitivity: {vad_sensitivity}")
 
-    # ปรับค่าการตั้งค่าการจับเสียง
-    apply_audio_settings(chunk_size, vad_sensitivity)
+        # ปรับค่าการตั้งค่าการจับเสียง
+        apply_audio_settings(vad_sensitivity, chunk_size)
 
-    return {"message": "Audio settings updated successfully"}
+        return {
+            "status": "success",
+            "message": "Audio settings updated successfully",
+            "settings": {
+                "chunkSize": chunk_size,
+                "vadSensitivity": vad_sensitivity
+            }
+        }
+    except ValueError as e:
+        print(f"JSON decode error in set_audio_settings: {str(e)}")
+        return {
+            "status": "error",
+            "error": "Invalid JSON format",
+            "message": "Request body must be valid JSON"
+        }
+    except Exception as e:
+        print(f"Error in set_audio_settings: {str(e)}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": "Failed to update audio settings"
+        }
 
 
 # ฟังก์ชันสำหรับตั้งค่าการจับเสียง (VAD Sensitivity) และขนาดช่วงเสียง (Chunk Size)
